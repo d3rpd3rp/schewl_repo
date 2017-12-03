@@ -271,13 +271,22 @@ print('getPythonList(encodedDataSet) returns type {}'.format(getPythonList(encod
 """
 
 
+
+
+#kNN
 kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
-numericCategories = ['net_ope_exp', 'net_con', 'tot_loa']
-nDataSet = normalizeData(dataset, numericCategories)
-classificationCategories = ['can_off', 'can_inc_cha_ope_sea']
-encodedDataSet = encodeData(nDataSet, classificationCategories)
-features, labels = getNumpy(encodedDataSet)
-fiveNN = KNN(encodedDataSet, 5)
+kNNnDataSet = normalizeData(dataset, kNNallFeatures[:3])
+kNNencodedDataSet = encodeData(kNNnDataSet, kNNallFeatures[3:])
+features, labels = getNumpy(kNNencodedDataSet)
+#print('kNN numpy looks like this: \n{}'.format(features))
+fiveNN = KNN(kNNencodedDataSet, 5)
+ratio = 0.5
+#commenting out for testing...03 December 2017 12:39
+#fiveNN.train(kNNallFeatures, ratio)
+#fiveNN.predict(allFeatures, labels)
+#print('nearest neighbors for fiveNN object after predict is {}'.format(fiveNN.nearestNeighbors))
+
+
 
 """
 print('printing out first class object creation for KNN...')
@@ -288,27 +297,12 @@ print('methinks labels are in pos 0 which are of length {}'.format(len(fiveNN.da
 print('and then in equal size the pos 1 which is of length {}.'.format(len(fiveNN.dataset[1])))
 """
 
-ratio = 0.5
-fiveNN.train(kNNallFeatures, ratio)
-
-#print('features is {} and \n\n\n\n labels is {}'.format(features, labels))
-#print('nearest neighbors for fiveNN object after init is {}'.format(fiveNN.nearestNeighbors))
-
-"""
-for i in range(0, len(fiveNN.trainingData)):
-	print('i is {}\n\n\n'.format(i))
-	print(' {}'.format(fiveNN.trainingData[i]))
-"""
 
 
 #tmpArray = [[no, netcon, totloa, canoff, canInc] for no, netcon, totloa, canoff, canInc in enumerate(fiveNN.trainingData)]
 #print('tmpArray:\n {}.'.format(tmpArray))
 
-"""
-#commenting out for testing...03 December 2017 12:39
-fiveNN.predict(allFeatures, labels)
-print('nearest neighbors for fiveNN object after predict is {}'.format(fiveNN.nearestNeighbors))
-"""
+
 
 """
 An object is classified by a majority vote of its neighbors, with the object being assigned to 
@@ -318,9 +312,15 @@ If k = 1, then the object is simply assigned to the class of that single nearest
 
 PallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H',\
  'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER', 'can_inc_cha_ope_sea_OPEN']
+PallFeaturesBools = [ 'can_off', 'can_inc_cha_ope_sea' ]
+PnDataSet = normalizeData(dataset, PallFeatures[:3])
+#print('PallFeatures[:3] is {}'.format(PallFeatures[:3]))
+PEncodedDataSet = encodeData(PnDataSet, PallFeaturesBools)
+pfeatures, plabels = getNumpy(PEncodedDataSet)
+#print('pfeatures looks like this: \n{}'.format(pfeatures))
 ratio = 0.5
-firstP = Perceptron(encodedDataSet, PallFeatures)
-firstP.train(PallFeatures, labels, ratio)
+firstP = Perceptron(PEncodedDataSet, PallFeatures)
+firstP.train(PallFeatures, plabels, ratio)
 
 #####NOTES SECTION#####
 #make sure to NORMALIZE the data!!
