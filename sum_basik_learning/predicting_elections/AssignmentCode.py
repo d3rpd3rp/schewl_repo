@@ -1,7 +1,9 @@
 import pandas as pd 
 import numpy as np
+####ADDITIONAL LIBRARIES USED####
 import math
 import time
+import random
 
 #Data with features and target values
 #Tutorial for Pandas is here - https://pandas.pydata.org/pandas-docs/stable/tutorials.html
@@ -119,10 +121,6 @@ class KNN:
 		for i in range(2, (self.k + 2)):
 			self.nearestNeighbors[i] = [initList, i%2]
 
-
-
-
-
 	def predict(self, features, labels):
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
@@ -144,7 +142,9 @@ class KNN:
 				currentNeighborHDist = hDist(testInstance, trainInstance, hPositionRange)
 				#attempt at normalizing the hamming distance, range is 0 through 6
 				currentNeighborHDist = currentNeighborHDist / 6
-				totalCurrentNeighborDist = currentNeighborHDist + currentNeighborEDist
+				#adding another factor to represent that the numeric values are 3
+				#and the boolean 'hot encoded' values are only 2
+				totalCurrentNeighborDist = 2/5 * currentNeighborHDist + 3/5 * currentNeighborEDist
 				print('self nN is: ')
 				for k, v in self.nearestNeighbors.iteritems():
 					print('k, v are {} , {}'.format(k, v))
@@ -161,10 +161,16 @@ class KNN:
 
 
 class Perceptron:
-	def __init__(self):
+	def __init__(self, features):
 		#Perceptron state here
-		#Feel free to add methods
-		states = None
+		#randomly initialize weights for the features
+		#weights between 0 and 1
+		self.weights = {}
+		for feature in features:
+			self.weights[feature] = random.randint(0, 100) / 100
+		print('initial weights are: ')
+		print(self.weights)
+			
 
 	def train(self, features, labels):
 		#training logic here
@@ -218,6 +224,7 @@ print('getPythonList(encodedDataSet) returns type {}'.format(getPythonList(encod
 #when do we need to normalize? what is normalize?
 """
 
+allFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 numericCategories = ['net_ope_exp', 'net_con', 'tot_loa']
 nDataSet = normalizeData(dataset, numericCategories)
 classificationCategories = ['can_off', 'can_inc_cha_ope_sea']
@@ -229,7 +236,7 @@ fiveNN = KNN(features, 5)
 #print('printing out first class object creation for KNN...')
 #print('fiveNN.fullEncodedDataSetList is:\n{}'.format(fiveNN.dataset))
 
-allFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
+
 
 """
 print('attempting to find the feature / label portions of the list...')
@@ -263,6 +270,8 @@ An object is classified by a majority vote of its neighbors, with the object bei
 the class most common among its k nearest neighbors (k is a positive integer, typically small). 
 If k = 1, then the object is simply assigned to the class of that single nearest neighbor.
 """
+
+firstP = Perceptron(allFeatures)
 
 
 #####NOTES SECTION#####
