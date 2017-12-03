@@ -10,6 +10,11 @@ import random
 #Helper functions are provided so you shouldn't need to learn Pandas
 dataset = pd.read_csv("data.csv")
 
+
+global timeCeiling
+timeCeiling = 20
+
+
 #========================================== Data Helper Functions ==========================================
 
 #Normalize values between 0 and 1
@@ -131,7 +136,7 @@ class KNN:
 		
 		ePositionRange = (0, 1, 2)
 		hPositionRange = (3, 4)
-		endTime = time.time() + 60
+		endTime = time.time() + timeCeiling
 		#for testInstance in self.testingData:
 		while time.time() < endTime:
 			print('testInstance is {}'.format(testInstance))
@@ -156,8 +161,6 @@ class KNN:
 					print('size of the dictionary for NN is now {}.'.format(len(self.nearestNeighbors)))
 
 
-
-
 class Perceptron:
 	def __init__(self, dataset, features):
 		#Perceptron state here
@@ -174,12 +177,14 @@ class Perceptron:
 			
 
 	def train(self, featuresList, labels, ratio):
+		#print initial weights for comparison
+		print('start of training: weights are now {}'.format(self.weights))
 		#training logic here
 		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
 		#input is list/array of features and labels
 		ePositionRange = (0, 1, 2)
 		hPositionRange = (3, 4)
-		endTime = time.time() + 60
+		endTime = time.time() + timeCeiling
 		#for testInstance in self.testingData:
 		while time.time() < endTime:
 			#print('testInstance is {}'.format(testInstance))
@@ -193,8 +198,27 @@ class Perceptron:
 				#print('and types {} and {}.'.format(type(self.weights[feature]), type(self.trainingData.loc[index, feature])))
 				#create the hyperplane to crossect as True or False (1, 0)
 				currentOut = self.weights[feature] * float(self.trainingData.loc[index, feature])
+				label = bool(self.trainingData.loc[index, 'winner'])
+				#since all data is normalized, the currentOut should be between 0 and 1
+				#print('weight, currentOut are {}, {} and label is {}'.format(self.weights[feature], currentOut, label))
+				#print('currentOut < 0.5 evaluates to {}'.format(currentOut < 0.5))
+				#print('label is True evaluates to {}'.format((label is True)))
+				#print('currentOut > 0.5 evaluates to {}'.format(currentOut > 0.5))
+				#print('label is False evaluates to {}'.format((label is False)))
+				if currentOut < 0.50 and label is True:
+					self.weights[feature] = self.weights[feature] + (0 - currentOut) * float(self.trainingData.loc[index, feature])
+					#print('corrected weight, currentOut is {} and label is {}'.format(currentOut, label))
+				elif currentOut > 0.50 and label is False:
+					self.weights[feature] = self.weights[feature] + (0 - currentOut) * float(self.trainingData.loc[index, feature])
+					#print('corrected weight, currentOut is {} and label is {}'.format(currentOut, label))
+				else: 
+					pass
+				
+				#w = w_original + (desired_output - current_ouput) * input_value
+
+
 				#print('currentOut is now {}'.format(currentOut))
-		
+
 		print('finished Perceptron training...')
 		print('weights are now {}'.format(self.weights))
 
@@ -245,6 +269,7 @@ encodedDataSet = encodeData(dataset, categories)
 print('getPythonList(encodedDataSet) returns type {}'.format(getPythonList(encodedDataSet)))
 #when do we need to normalize? what is normalize?
 """
+
 
 kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 numericCategories = ['net_ope_exp', 'net_con', 'tot_loa']
