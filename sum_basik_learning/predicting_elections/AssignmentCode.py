@@ -131,11 +131,9 @@ class KNN:
 		
 		ePositionRange = (0, 1, 2)
 		hPositionRange = (3, 4)
-		endTime = time.gmtime()
-		currentTime = time.gmtime()
-		endTime = endTime.tm_min * 60 + endTime.tm_sec + 60
-		currentTime = currentTime.tm_min * 60 + currentTime.tm_sec
-		for testInstance in self.testingData:
+		endTime = time.time() + 60
+		#for testInstance in self.testingData:
+		while time.time() < endTime:
 			print('testInstance is {}'.format(testInstance))
 			for trainInstance in self.trainingData:
 				currentNeighborEDist = eDist(testInstance, trainInstance, ePositionRange)
@@ -161,21 +159,45 @@ class KNN:
 
 
 class Perceptron:
-	def __init__(self, features):
+	def __init__(self, dataset, features):
 		#Perceptron state here
+		self.dataset = dataset
+		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
+		self.nearestNeighbors = {}
 		#randomly initialize weights for the features
 		#weights between 0 and 1
 		self.weights = {}
 		for feature in features:
-			self.weights[feature] = random.randint(0, 100) / 100
-		print('initial weights are: ')
-		print(self.weights)
+			self.weights[feature] = random.randint(0, 100) / 100.00
+		#print('initial weights are: ')
+		#print(self.weights)
 			
 
-	def train(self, features, labels):
+	def train(self, featuresList, labels, ratio):
 		#training logic here
+		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
 		#input is list/array of features and labels
-		features = None
+		ePositionRange = (0, 1, 2)
+		hPositionRange = (3, 4)
+		endTime = time.time() + 60
+		#for testInstance in self.testingData:
+		while time.time() < endTime:
+			#print('testInstance is {}'.format(testInstance))
+			index = random.randint(0, len(self.trainingData) - 1)
+			#print('index is {} and of type {}'.format(index, type(index)))
+			trainInstance = self.trainingData.iloc[[index]]
+			#print('trainInstance is {} and of type {}'.format(trainInstance, type(trainInstance)))
+			for feature in featuresList:
+				#print('feature is {} and of type {}'.format(feature, type(feature)))
+				#print('self.weights[feature] is {} and self.trainingData[feature] is {}'.format(self.weights[feature], self.trainingData.loc[index, feature]))
+				#print('and types {} and {}.'.format(type(self.weights[feature]), type(self.trainingData.loc[index, feature])))
+				#create the hyperplane to crossect as True or False (1, 0)
+				currentOut = self.weights[feature] * float(self.trainingData.loc[index, feature])
+				#print('currentOut is now {}'.format(currentOut))
+		
+		print('finished Perceptron training...')
+		print('weights are now {}'.format(self.weights))
+
 
 	def predict(self, features):
 		#Run model here
@@ -224,46 +246,44 @@ print('getPythonList(encodedDataSet) returns type {}'.format(getPythonList(encod
 #when do we need to normalize? what is normalize?
 """
 
-allFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
+kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 numericCategories = ['net_ope_exp', 'net_con', 'tot_loa']
 nDataSet = normalizeData(dataset, numericCategories)
 classificationCategories = ['can_off', 'can_inc_cha_ope_sea']
 encodedDataSet = encodeData(nDataSet, classificationCategories)
 features, labels = getNumpy(encodedDataSet)
-fiveNN = KNN(features, 5)
-
-
-#print('printing out first class object creation for KNN...')
-#print('fiveNN.fullEncodedDataSetList is:\n{}'.format(fiveNN.dataset))
-
-
+fiveNN = KNN(encodedDataSet, 5)
 
 """
+print('printing out first class object creation for KNN...')
+print('fiveNN.fullEncodedDataSetList is:\n{}'.format(fiveNN.dataset))
 print('attempting to find the feature / label portions of the list...')
 print('fiveNN.fullEncodedDataSetList is of length {}'.format(len(fiveNN.dataset)))
 print('methinks labels are in pos 0 which are of length {}'.format(len(fiveNN.dataset[0])))
 print('and then in equal size the pos 1 which is of length {}.'.format(len(fiveNN.dataset[1])))
 """
+
 ratio = 0.5
-fiveNN.train(allFeatures, ratio)
+fiveNN.train(kNNallFeatures, ratio)
 
 #print('features is {} and \n\n\n\n labels is {}'.format(features, labels))
 #print('nearest neighbors for fiveNN object after init is {}'.format(fiveNN.nearestNeighbors))
 
-
+"""
 for i in range(0, len(fiveNN.trainingData)):
 	print('i is {}\n\n\n'.format(i))
 	print(' {}'.format(fiveNN.trainingData[i]))
-	
+"""
 
 
 #tmpArray = [[no, netcon, totloa, canoff, canInc] for no, netcon, totloa, canoff, canInc in enumerate(fiveNN.trainingData)]
 #print('tmpArray:\n {}.'.format(tmpArray))
 
+"""
+#commenting out for testing...03 December 2017 12:39
 fiveNN.predict(allFeatures, labels)
-
 print('nearest neighbors for fiveNN object after predict is {}'.format(fiveNN.nearestNeighbors))
-
+"""
 
 """
 An object is classified by a majority vote of its neighbors, with the object being assigned to 
@@ -271,8 +291,11 @@ the class most common among its k nearest neighbors (k is a positive integer, ty
 If k = 1, then the object is simply assigned to the class of that single nearest neighbor.
 """
 
-firstP = Perceptron(allFeatures)
-
+PallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H',\
+ 'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER', 'can_inc_cha_ope_sea_OPEN']
+ratio = 0.5
+firstP = Perceptron(encodedDataSet, PallFeatures)
+firstP.train(PallFeatures, labels, ratio)
 
 #####NOTES SECTION#####
 #make sure to NORMALIZE the data!!
