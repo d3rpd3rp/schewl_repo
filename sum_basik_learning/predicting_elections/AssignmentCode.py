@@ -68,7 +68,7 @@ def evaluate(solutions, real):
 	return (predictions == labels).sum() / labels.size
 
 #####CAUTION AREA, STUDENT DEFINED METHODS!!!######
-def eDist(xQ, xI, positionRange):
+def eDist(xQ, xI, featureList):
 	#euclidean distance function
 	#assumes xQ and xI are lists with ranges given by positionRange
 	#assumes tuples are of somewhat equal lenght (contain the range defined by positionRange)
@@ -76,30 +76,25 @@ def eDist(xQ, xI, positionRange):
 	#input: query tuple, dataset tuple, range of values to be considered
 	totalSumOfSquares = 0.00
 	try:
-		print('min(positionRange), max(positionRange) are {} and {}'.format(min(positionRange), max(positionRange)))
-		#print('xQ and xI are {} and {}'.format(xQ, xI))
-		for index in range(min(positionRange), max(positionRange)):
-			totalSumOfSquares += abs(xQ[index] - xI[index])**2
+		for feature in featureList:			
+			totalSumOfSquares += abs(xQ[feature] - xI[feature])**2
 		dist = math.sqrt(totalSumOfSquares)
 		return dist
 	except:
 		print('Error, no Euclidean distance returned...values passed xQ, xI were of length {}, {}.'.format(len(xQ), len(xI)))
 
-def hDist(xQ, xI, positionRange):
+def hDist(xQ, xI):
 	#hamming distance function
 	#assumes xQ and xI are lists with ranges given by positionRange
 	#assumes tuples are of somewhat equal lenght (contain the range defined by positionRange)
 	#positionRange should be a tuple with a start and stop index...
-	try:
-		print('min(positionRange), max(positionRange) are {} and {}'.format(min(positionRange), max(positionRange)))
-		d = 0
-		for index in range(min(positionRange), max(positionRange)):
-			if xQ[index] is not xI[index]:
-				d += 1
-		return d
-	except:
-		print('Error, no Hamming distance returned...values passed xQ, xI were of length {}, {}.'.format(len(xQ), len(xI)))
-
+	d = 0
+	booleanFeatures = ['can_off_P', 'can_off_S', 'can_off_H', 'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER',\
+		'can_inc_cha_ope_sea_OPEN']
+	for feature in booleanFeatures:
+		if xQ[feature] is not xI[feature]:
+			d += 1
+	return d
 
 
 #===========================================================================================================
@@ -113,6 +108,7 @@ class KNN:
 		self.trainingData = None
 		self.testingData = None
 		self.nearestNeighbors = {}
+		self.vote = {}
 
 
 	def train(self, features, ratio):
@@ -125,6 +121,9 @@ class KNN:
 			initList.append(2)
 		for i in range(2, (self.k + 2)):
 			self.nearestNeighbors[i] = [initList, i%2]
+		for k in range(0, 5):
+			self.vote[k - (k - 1)] = random.choice([True, False])
+
 
 	def predict(self, features, labels):
 		#Run model here
@@ -133,39 +132,38 @@ class KNN:
 		#will use the sum of all features to get started...
 		#nearestNeighbors will be a tuple of the instance data, totalCurrentNeighborDist, and outcome
 		#outcome is available from the training data
-		
-		ePositionRange = (0, 1, 2)
-		hPositionRange = (3, 4)
 		endTime = time.time() + timeCeiling
-		#for testInstance in self.testingData:
 		while time.time() < endTime:
-			print('testInstance is {}'.format(testInstance))
-			for trainInstance in self.trainingData:
-				currentNeighborEDist = eDist(testInstance, trainInstance, ePositionRange)
-				currentNeighborHDist = hDist(testInstance, trainInstance, hPositionRange)
-				#attempt at normalizing the hamming distance, range is 0 through 6
-				currentNeighborHDist = currentNeighborHDist / 6
-				#adding another factor to represent that the numeric values are 3
-				#and the boolean 'hot encoded' values are only 2
-				totalCurrentNeighborDist = 2/5 * currentNeighborHDist + 3/5 * currentNeighborEDist
-				print('self nN is: ')
-				for k, v in self.nearestNeighbors.iteritems():
-					print('k, v are {} , {}'.format(k, v))
-				currentMax = max(k for k, v in self.nearestNeighbors.iteritems())
-				print('currentMax is {} before comparison with totalDist...'.format(currentMax))
-				print('trainInstance is {}'.format(trainInstance))
-				if totalCurrentNeighborDist < currentMax or currentMax is None:
-					print('nearestNeighbors[currentMax] is {} before comparison with totalDist...'.format(self.nearestNeighbors[currentMax]))
-					del self.nearestNeighbors[currentMax]
-					self.nearestNeighbors[totalCurrentNeighborDist] = trainInstance
-					print('size of the dictionary for NN is now {}.'.format(len(self.nearestNeighbors)))
+			index = random.randint(0, len(self.trainingData) - 1)
+			label = bool(self.trainingData.loc[index, 'winner'])
+			regressionValues = features[:3]
+			currentNeighborEDist = eDist(self.testingData.iloc[index], self.trainingData.iloc[index], regressionValues)
+			currentNeighborHDist = hDist(self.testingData.iloc[index], self.trainingData.iloc[index])
+			#attempt at normalizing the hamming distance, range is 0 through 6
+			currentNeighborHDist = currentNeighborHDist / 6
+			#adding another factor to represent that the numeric values are 3
+			#and the boolean 'hot encoded' values are only 2
+			#but does it make sense to add hammming dist to euclidean dist?
+			totalCurrentNeighborDist = 2/5 * currentNeighborHDist + 3/5 * currentNeighborEDist
+			print('self nN is: ')
+			for k, v in self.nearestNeighbors.iteritems():
+				print('k, v are {} , {}'.format(k, v))
+			currentMax = max(k for k, v in self.nearestNeighbors.iteritems())
+			print('currentMax is {} before comparison with totalDist...'.format(currentMax))
+			if totalCurrentNeighborDist < currentMax or currentMax is None:
+				print('nearestNeighbors[currentMax] is {} before comparison with totalDist...'.format(self.nearestNeighbors[currentMax]))
+				del self.nearestNeighbors[currentMax]
+				self.nearestNeighbors[totalCurrentNeighborDist] = self.testingData.iloc[index]
+				self.vote[totalCurrentNeighborDist] = label 
+				print('size of the dictionary for NN is now {}.'.format(len(self.nearestNeighbors)))
 
 
 class Perceptron:
 	def __init__(self, dataset, features):
 		#Perceptron state here
 		self.dataset = dataset
-		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
+		self.trainingData = None
+		self.testingData = None
 		self.nearestNeighbors = {}
 		#randomly initialize weights for the features
 		#weights between 0 and 1
@@ -186,8 +184,6 @@ class Perceptron:
 		cIncChalHotList = featuresListHot[6:9]
 		print('cOfficeHotList is {}. \ncIncChalHotList is {}.'.format(cOfficeHotList, cIncChalHotList))
 		#input is list/array of features and labels
-		ePositionRange = (0, 1, 2)
-		hPositionRange = (3, 4)
 		endTime = time.time() + timeCeiling
 		while time.time() < endTime:
 			index = random.randint(0, len(self.trainingData) - 1)
@@ -278,13 +274,13 @@ kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_o
 kNNnDataSet = normalizeData(dataset, kNNallFeatures[:3])
 kNNencodedDataSet = encodeData(kNNnDataSet, kNNallFeatures[3:])
 features, labels = getNumpy(kNNencodedDataSet)
-#print('kNN numpy looks like this: \n{}'.format(features))
+print('kNN numpy features are: \n{}'.format(features))
 fiveNN = KNN(kNNencodedDataSet, 5)
 ratio = 0.5
 #commenting out for testing...03 December 2017 12:39
-#fiveNN.train(kNNallFeatures, ratio)
-#fiveNN.predict(allFeatures, labels)
-#print('nearest neighbors for fiveNN object after predict is {}'.format(fiveNN.nearestNeighbors))
+fiveNN.train(kNNallFeatures, ratio)
+fiveNN.predict(kNNallFeatures, labels)
+print('nearest neighbors for fiveNN object after predict is {}'.format(fiveNN.nearestNeighbors))
 
 
 
