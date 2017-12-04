@@ -144,33 +144,32 @@ class KNN:
 		#outcome is available from the training data
 		endTime = time.time() + timeCeiling
 		while time.time() < endTime:
-			for sampleIndex in range(0, random.randint(0, len(self.testingData))):
-				numNeighborsFound = 0
-				while self.neighborsFound[sampleIndex] is False:
-					trainingIndex = random.randint(0, len(self.trainingData) - 1)
-					label = bool(self.trainingData.loc[trainingIndex, 'winner'])
-					regressionValues = features[:3]
-					currentNeighborEDist = eDist(self.trainingData.iloc[sampleIndex], self.trainingData.iloc[trainingIndex], regressionValues)
-					currentNeighborHDist = hDist(self.trainingData.iloc[sampleIndex], self.trainingData.iloc[trainingIndex])
-					#attempt at normalizing the hamming distance, since types are mutually exclusive,
-					#the max distance for Hamming is 2
-					currentNeighborHDist = currentNeighborHDist / 2.00
-					#and the boolean 'hot encoded' values are only 2
-					#but does it make sense to add hammming dist to euclidean dist?
-					totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
-					currentMax = max(k for k in self.nearestNeighbors[sampleIndex].iterkeys())
-					if currentMax is None:
-						numNeighborsFound += 1
-						self.nearestNeighbors[sampleIndex][totalCurrentNeighborDist] = (self.testingData.iloc[sampleIndex], label) 				
-					elif totalCurrentNeighborDist < currentMax and not totalCurrentNeighborDist in self.nearestNeighbors[sampleIndex].keys():
-						del self.nearestNeighbors[sampleIndex][currentMax]
-						self.nearestNeighbors[sampleIndex][totalCurrentNeighborDist] = (self.testingData.iloc[sampleIndex], label)
-						numNeighborsFound += 1
-						if numNeighborsFound > 4:
-							self.neighborsFound[sampleIndex] = True
-							#print('self.nearestNeighbors[{}].keys() is {}.'.format(sampleIndex, self.nearestNeighbors[sampleIndex].keys()))
-					else:
-						pass
+			testingIndex = random.randint(0, len(self.testingData) - 1)
+			numNeighborsFound = 0
+			while self.neighborsFound[testingIndex] is False:
+				trainingIndex = random.randint(0, len(self.trainingData) - 1)
+				label = bool(self.trainingData.loc[trainingIndex, 'winner'])
+				regressionValues = features[:3]
+				currentNeighborEDist = eDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex], regressionValues)
+				currentNeighborHDist = hDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex])
+				#attempt at normalizing the hamming distance, since types are mutually exclusive,
+				#the max distance for Hamming is 2
+				currentNeighborHDist = currentNeighborHDist / 2.00
+				#and the boolean 'hot encoded' values are only 2
+				#but does it make sense to add hammming dist to euclidean dist?
+				totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
+				currentMax = max(k for k in self.nearestNeighbors[testingIndex].iterkeys())
+				if currentMax is None:
+					numNeighborsFound += 1
+					self.nearestNeighbors[testingIndex][totalCurrentNeighborDist] = (self.testingData.iloc[testingIndex], label) 				
+				elif totalCurrentNeighborDist < currentMax and not totalCurrentNeighborDist in self.nearestNeighbors[testingIndex].keys():
+					del self.nearestNeighbors[testingIndex][currentMax]
+					self.nearestNeighbors[testingIndex][totalCurrentNeighborDist] = (self.testingData.iloc[testingIndex], label)
+					numNeighborsFound += 1
+					if numNeighborsFound > 4:
+						self.neighborsFound[testingIndex] = True
+				else:
+					pass
 		self.majorityVote()
 
 
@@ -180,12 +179,12 @@ class Perceptron:
 		self.dataset = dataset
 		self.trainingData = None
 		self.testingData = None
-		self.nearestNeighbors = {}
 		#randomly initialize weights for the features
 		#weights between 0 and 1
 		self.weights = {}
 		for feature in features:
 			self.weights[feature] = random.randint(0, 100) / 100.00
+		self.predictions = []
 			
 
 	def train(self, featuresList, featuresListHot, labels, ratio):
@@ -207,24 +206,24 @@ class Perceptron:
 				currentOut = self.weights[nfeature] * float(self.trainingData.loc[index, nfeature])
 				#since all data is normalized, the currentOut should be between 0 and 1
 				#w = w_original + (desired_output - current_ouput) * input_value
-				if currentOut < 0.50 and label is True:
+				if currentOut < 0 and label is True:
 					self.weights[nfeature] = self.weights[nfeature] + (0 - currentOut) * float(self.trainingData.loc[index, nfeature])
-				elif currentOut > 0.50 and label is False:
+				elif currentOut > 0 and label is False:
 					self.weights[nfeature] = self.weights[nfeature] + (1 - currentOut) * float(self.trainingData.loc[index, nfeature])
 				else: 
 					pass
 			#'can_off', 'can_inc_cha_ope_sea'
 			normcOfficeOut = self.weights['can_off'] * 1.00 
-			if normcOfficeOut > 0.50 and label is False:
+			if normcOfficeOut > 0 and label is False:
 				self.weights['can_off'] = self.weights['can_off'] + (1.00 - normcOfficeOut) * normcOfficeOut
-			elif normcOfficeOut < 0.50 and label is True:
+			elif normcOfficeOut < 0 and label is True:
 				self.weights['can_off'] = self.weights['can_off'] + (0.00 - normcOfficeOut) * normcOfficeOut
 			else:
 				pass
 			ncIncChalOut = self.weights['can_inc_cha_ope_sea'] * 1.00
-			if ncIncChalOut > 0.50 and label is False:
+			if ncIncChalOut > 0 and label is False:
 				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (1.00 - ncIncChalOut) * ncIncChalOut
-			elif normcOfficeOut < 0.50 and label is True:
+			elif normcOfficeOut < 0 and label is True:
 				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0.00 - ncIncChalOut) * ncIncChalOut
 			else:
 				pass
@@ -236,10 +235,19 @@ class Perceptron:
 	def predict(self, features):
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
-		prediction = 0
-		for instance in self.testingData:
+		self.predictions = [(None, -1) for n in range(0, len(self.testingData))]
+		for index in range(0, len(self.testingData)):
+			results = []
 			for feature in features:
-
+				print('self.weights[feature] is {}'.format(self.weights[feature]))
+				print('self.testingData[index] is of type {}'.format(type(self.testingData[index])))
+				results.append(self.weights[feature] * self.testingData[index][feature])
+			if max(results)	> 0:
+				self.predictions[index] = (testingData[index], True)
+			elif max(results) < 0:
+				self.predictions[index] = (testingData[index], False)
+			else:
+				pass
 
 
 class MLP:
@@ -282,7 +290,7 @@ kNNencodedDataSet = encodeData(kNNnDataSet, kNNallFeatures[3:])
 features, labels = getNumpy(kNNencodedDataSet)
 print('kNN numpy features are: \n{}'.format(features))
 fiveNN = KNN(kNNencodedDataSet, 5)
-ratio = 0.70
+ratio = 0.5
 fiveNN.train(features, ratio)
 fiveNN.predict(kNNallFeatures, labels)
 print('length of fiveNN vote {} and testingData[\'winner\'] {}'.format(len(fiveNN.vote), len(fiveNN.testingData['winner'])))
