@@ -176,45 +176,63 @@ class Perceptron:
 		#print(self.weights)
 			
 
-	def train(self, featuresList, labels, ratio):
+	def train(self, featuresList, featuresListHot, labels, ratio):
 		#print initial weights for comparison
 		print('start of training: weights are now {}'.format(self.weights))
 		#training logic here
 		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
+		numericFeaturesList = featuresList[:3]
+		cOfficeHotList = featuresListHot[3:6]
+		cIncChalHotList = featuresListHot[6:9]
+		print('cOfficeHotList is {}. \n cIncChalHotList is {}.'.format(cOfficeHotList, cIncChalHotList))
 		#input is list/array of features and labels
 		ePositionRange = (0, 1, 2)
 		hPositionRange = (3, 4)
 		endTime = time.time() + timeCeiling
-		#for testInstance in self.testingData:
 		while time.time() < endTime:
-			#print('testInstance is {}'.format(testInstance))
 			index = random.randint(0, len(self.trainingData) - 1)
-			#print('index is {} and of type {}'.format(index, type(index)))
-			trainInstance = self.trainingData.iloc[[index]]
-			#print('trainInstance is {} and of type {}'.format(trainInstance, type(trainInstance)))
-			for feature in featuresList:
-				#print('feature is {} and of type {}'.format(feature, type(feature)))
-				#print('self.weights[feature] is {} and self.trainingData[feature] is {}'.format(self.weights[feature], self.trainingData.loc[index, feature]))
-				#print('and types {} and {}.'.format(type(self.weights[feature]), type(self.trainingData.loc[index, feature])))
+			label = bool(self.trainingData.loc[index, 'winner'])
+			for nfeature in numericFeaturesList:
 				#create the hyperplane to crossect as True or False (1, 0)
-				currentOut = self.weights[feature] * float(self.trainingData.loc[index, feature])
-				label = bool(self.trainingData.loc[index, 'winner'])
+				currentOut = self.weights[nfeature] * float(self.trainingData.loc[index, nfeature])
 				#since all data is normalized, the currentOut should be between 0 and 1
-				#print('weight, currentOut are {}, {} and label is {}'.format(self.weights[feature], currentOut, label))
-				#print('currentOut < 0.5 evaluates to {}'.format(currentOut < 0.5))
-				#print('label is True evaluates to {}'.format((label is True)))
-				#print('currentOut > 0.5 evaluates to {}'.format(currentOut > 0.5))
-				#print('label is False evaluates to {}'.format((label is False)))
+				#w = w_original + (desired_output - current_ouput) * input_value
 				if currentOut < 0.50 and label is True:
-					self.weights[feature] = self.weights[feature] + (0 - currentOut) * float(self.trainingData.loc[index, feature])
+					self.weights[nfeature] = self.weights[nfeature] + (0 - currentOut) * float(self.trainingData.loc[index, nfeature])
 					#print('corrected weight, currentOut is {} and label is {}'.format(currentOut, label))
 				elif currentOut > 0.50 and label is False:
-					self.weights[feature] = self.weights[feature] + (0 - currentOut) * float(self.trainingData.loc[index, feature])
+					self.weights[nfeature] = self.weights[nfeature] + (0 - currentOut) * float(self.trainingData.loc[index, nfeature])
 					#print('corrected weight, currentOut is {} and label is {}'.format(currentOut, label))
 				else: 
 					pass
-				
-				#w = w_original + (desired_output - current_ouput) * input_value
+				#'can_off', 'can_inc_cha_ope_sea'
+			cOfficeOut = 0
+			for cOfficeFeature in cOfficeHotList:
+				#print('current object...bfeature is {} and trainingData bfeature is {}'.format(bfeature, self.trainingData.loc[index, bfeature]))
+				cOfficeOut += self.trainingData.loc[index, cOfficeFeature]
+			print('total sum from cOfficeHotList is {}'.format(cOfficeOut))
+			normcOfficeOut = self.weights['can_off'] * cOfficeOut / 3.00 
+			if normcOfficeOut > 0.50 and label is False:
+				self.weights['can_off'] = self.weights['can_off'] + (0 - normcOfficeOut) * normcOfficeOut
+			elif normcOfficeOut < 0.50 and label is True:
+				self.weights['can_off'] = self.weights['can_off'] + (1 - normcOfficeOut) * normcOfficeOut
+			else:
+				pass
+			cIncChalHotOut = 0
+			for cIncChalFeature in cIncChalHotList:
+				cIncChalHotOut += self.trainingData.loc[index, cIncChalFeature]
+			print('total sum from cOfficeHotList is {}'.format(cIncChalHotOut))
+			ncIncChalOut = self.weights['can_inc_cha_ope_sea'] * cIncChalHotOut / 3.00
+			if ncIncChalOut > 0.50 and label is False:
+				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0 - ncIncChalOut) * ncIncChalOut
+			elif normcOfficeOut < 0.50 and label is True:
+				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (1 - ncIncChalOut) * ncIncChalOut
+			else:
+				pass
+ 
+
+			
+
 
 
 				#print('currentOut is now {}'.format(currentOut))
@@ -309,18 +327,20 @@ An object is classified by a majority vote of its neighbors, with the object bei
 the class most common among its k nearest neighbors (k is a positive integer, typically small). 
 If k = 1, then the object is simply assigned to the class of that single nearest neighbor.
 """
-
-PallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H',\
+PallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
+PallFeaturesHot = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H',\
  'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER', 'can_inc_cha_ope_sea_OPEN']
 PallFeaturesBools = [ 'can_off', 'can_inc_cha_ope_sea' ]
-PnDataSet = normalizeData(dataset, PallFeatures[:3])
+PnDataSet = normalizeData(dataset, PallFeaturesHot[:3])
 #print('PallFeatures[:3] is {}'.format(PallFeatures[:3]))
 PEncodedDataSet = encodeData(PnDataSet, PallFeaturesBools)
 pfeatures, plabels = getNumpy(PEncodedDataSet)
 #print('pfeatures looks like this: \n{}'.format(pfeatures))
 ratio = 0.5
 firstP = Perceptron(PEncodedDataSet, PallFeatures)
-firstP.train(PallFeatures, plabels, ratio)
+print('firstP has weights of {}'.format(firstP.weights))
+firstP.train(PallFeatures, PallFeaturesHot, plabels, ratio)
 
 #####NOTES SECTION#####
-#make sure to NORMALIZE the data!!
+#dont forget the bias
+#make sure to NORMALIZE the data
