@@ -184,7 +184,7 @@ class Perceptron:
 		numericFeaturesList = featuresList[:3]
 		cOfficeHotList = featuresListHot[3:6]
 		cIncChalHotList = featuresListHot[6:9]
-		print('cOfficeHotList is {}. \n cIncChalHotList is {}.'.format(cOfficeHotList, cIncChalHotList))
+		print('cOfficeHotList is {}. \ncIncChalHotList is {}.'.format(cOfficeHotList, cIncChalHotList))
 		#input is list/array of features and labels
 		ePositionRange = (0, 1, 2)
 		hPositionRange = (3, 4)
@@ -199,43 +199,25 @@ class Perceptron:
 				#w = w_original + (desired_output - current_ouput) * input_value
 				if currentOut < 0.50 and label is True:
 					self.weights[nfeature] = self.weights[nfeature] + (0 - currentOut) * float(self.trainingData.loc[index, nfeature])
-					#print('corrected weight, currentOut is {} and label is {}'.format(currentOut, label))
 				elif currentOut > 0.50 and label is False:
-					self.weights[nfeature] = self.weights[nfeature] + (0 - currentOut) * float(self.trainingData.loc[index, nfeature])
-					#print('corrected weight, currentOut is {} and label is {}'.format(currentOut, label))
+					self.weights[nfeature] = self.weights[nfeature] + (1 - currentOut) * float(self.trainingData.loc[index, nfeature])
 				else: 
 					pass
-				#'can_off', 'can_inc_cha_ope_sea'
-			cOfficeOut = 0
-			for cOfficeFeature in cOfficeHotList:
-				#print('current object...bfeature is {} and trainingData bfeature is {}'.format(bfeature, self.trainingData.loc[index, bfeature]))
-				cOfficeOut += self.trainingData.loc[index, cOfficeFeature]
-			print('total sum from cOfficeHotList is {}'.format(cOfficeOut))
-			normcOfficeOut = self.weights['can_off'] * cOfficeOut / 3.00 
+			#'can_off', 'can_inc_cha_ope_sea'
+			normcOfficeOut = self.weights['can_off'] * 1.00 / 3.00 
 			if normcOfficeOut > 0.50 and label is False:
-				self.weights['can_off'] = self.weights['can_off'] + (0 - normcOfficeOut) * normcOfficeOut
-			elif normcOfficeOut < 0.50 and label is True:
 				self.weights['can_off'] = self.weights['can_off'] + (1 - normcOfficeOut) * normcOfficeOut
-			else:
-				pass
-			cIncChalHotOut = 0
-			for cIncChalFeature in cIncChalHotList:
-				cIncChalHotOut += self.trainingData.loc[index, cIncChalFeature]
-			print('total sum from cOfficeHotList is {}'.format(cIncChalHotOut))
-			ncIncChalOut = self.weights['can_inc_cha_ope_sea'] * cIncChalHotOut / 3.00
-			if ncIncChalOut > 0.50 and label is False:
-				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0 - ncIncChalOut) * ncIncChalOut
 			elif normcOfficeOut < 0.50 and label is True:
-				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (1 - ncIncChalOut) * ncIncChalOut
+				self.weights['can_off'] = self.weights['can_off'] + (0 - normcOfficeOut) * normcOfficeOut
 			else:
 				pass
- 
-
-			
-
-
-
-				#print('currentOut is now {}'.format(currentOut))
+			ncIncChalOut = self.weights['can_inc_cha_ope_sea'] * 1.00 / 3.00
+			if ncIncChalOut > 0.50 and label is False:
+				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (1 - ncIncChalOut) * ncIncChalOut
+			elif normcOfficeOut < 0.50 and label is True:
+				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0 - ncIncChalOut) * ncIncChalOut
+			else:
+				pass
 
 		print('finished Perceptron training...')
 		print('weights are now {}'.format(self.weights))
