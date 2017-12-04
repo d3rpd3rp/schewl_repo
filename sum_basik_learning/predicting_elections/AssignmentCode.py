@@ -12,7 +12,7 @@ dataset = pd.read_csv("data.csv")
 
 
 global timeCeiling
-timeCeiling = 20
+timeCeiling = 5
 
 
 #========================================== Data Helper Functions ==========================================
@@ -65,7 +65,7 @@ def getPythonList(dataset):
 def evaluate(solutions, real):
 	predictions = np.array(solutions)
 	labels = np.array(real)
-	return (predictions == labels).sum() / labels.size
+	return (predictions == labels).sum() * 1.00 / labels.size
 
 #####CAUTION AREA, STUDENT DEFINED METHODS!!!######
 def eDist(xQ, xI, featureList):
@@ -107,23 +107,33 @@ class KNN:
 		self.k = k
 		self.trainingData = None
 		self.testingData = None
-		self.nearestNeighbors = {}
-		self.vote = {}
+		self.nearestNeighbors = []
+		self.neighborsFound = []
+		self.vote = []
 
-
+	def majorityVote(self):
+		#k must be odd
+		self.vote = [random.choice([True, False]) for n in range(0, len(self.nearestNeighbors))]
+		#print('self.vote is of length {}'.format(len(self.vote)))
+		for index in range(0, len(self.nearestNeighbors)):
+			score = 0
+			for key in self.nearestNeighbors[index].keys(): 
+				score += self.nearestNeighbors[index][key][1]
+			if self.k/2 < score:
+				self.vote[index] = True
+			else:
+				self.vote[index] = False
+			
 	def train(self, features, ratio):
 		#training logic here
 		#input is list/array of features and labels
 		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
-		#create dummy tuple for initialization of the nearest neighbors structure
-		initList = []
-		for j in range(0, len(features)):
-			initList.append(2)
-		for i in range(2, (self.k + 2)):
-			self.nearestNeighbors[i] = [initList, i%2]
-		for k in range(0, 5):
-			self.vote[k - (k - 1)] = random.choice([True, False])
-
+		#create dummy entry for initialization of the nearest neighbors dict
+		self.nearestNeighbors = [{5 : None} for j in range(0, len(self.testingData))]
+		self.neighborsFound = [False for k in range(0, len(self.testingData))]
+		for p in range(0, len(self.testingData)):
+			for i in range(0, self.k - 1):
+				self.nearestNeighbors[p][i + 6] = None
 
 	def predict(self, features, labels):
 		#Run model here
@@ -134,28 +144,34 @@ class KNN:
 		#outcome is available from the training data
 		endTime = time.time() + timeCeiling
 		while time.time() < endTime:
-			index = random.randint(0, len(self.trainingData) - 1)
-			label = bool(self.trainingData.loc[index, 'winner'])
-			regressionValues = features[:3]
-			currentNeighborEDist = eDist(self.testingData.iloc[index], self.trainingData.iloc[index], regressionValues)
-			currentNeighborHDist = hDist(self.testingData.iloc[index], self.trainingData.iloc[index])
-			#attempt at normalizing the hamming distance, range is 0 through 6
-			currentNeighborHDist = currentNeighborHDist / 6
-			#adding another factor to represent that the numeric values are 3
-			#and the boolean 'hot encoded' values are only 2
-			#but does it make sense to add hammming dist to euclidean dist?
-			totalCurrentNeighborDist = 2/5 * currentNeighborHDist + 3/5 * currentNeighborEDist
-			print('self nN is: ')
-			for k, v in self.nearestNeighbors.iteritems():
-				print('k, v are {} , {}'.format(k, v))
-			currentMax = max(k for k, v in self.nearestNeighbors.iteritems())
-			print('currentMax is {} before comparison with totalDist...'.format(currentMax))
-			if totalCurrentNeighborDist < currentMax or currentMax is None:
-				print('nearestNeighbors[currentMax] is {} before comparison with totalDist...'.format(self.nearestNeighbors[currentMax]))
-				del self.nearestNeighbors[currentMax]
-				self.nearestNeighbors[totalCurrentNeighborDist] = self.testingData.iloc[index]
-				self.vote[totalCurrentNeighborDist] = label 
-				print('size of the dictionary for NN is now {}.'.format(len(self.nearestNeighbors)))
+			for sampleIndex in range(0, random.randint(0, len(self.testingData))):
+				numNeighborsFound = 0
+				while self.neighborsFound[sampleIndex] is False:
+					trainingIndex = random.randint(0, len(self.trainingData) - 1)
+					label = bool(self.trainingData.loc[trainingIndex, 'winner'])
+					regressionValues = features[:3]
+					currentNeighborEDist = eDist(self.trainingData.iloc[sampleIndex], self.trainingData.iloc[trainingIndex], regressionValues)
+					currentNeighborHDist = hDist(self.trainingData.iloc[sampleIndex], self.trainingData.iloc[trainingIndex])
+					#attempt at normalizing the hamming distance, since types are mutually exclusive,
+					#the max distance for Hamming is 2
+					currentNeighborHDist = currentNeighborHDist / 2.00
+					#and the boolean 'hot encoded' values are only 2
+					#but does it make sense to add hammming dist to euclidean dist?
+					totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
+					currentMax = max(k for k in self.nearestNeighbors[sampleIndex].iterkeys())
+					if currentMax is None:
+						numNeighborsFound += 1
+						self.nearestNeighbors[sampleIndex][totalCurrentNeighborDist] = (self.testingData.iloc[sampleIndex], label) 				
+					elif totalCurrentNeighborDist < currentMax and not totalCurrentNeighborDist in self.nearestNeighbors[sampleIndex].keys():
+						del self.nearestNeighbors[sampleIndex][currentMax]
+						self.nearestNeighbors[sampleIndex][totalCurrentNeighborDist] = (self.testingData.iloc[sampleIndex], label)
+						numNeighborsFound += 1
+						if numNeighborsFound > 4:
+							self.neighborsFound[sampleIndex] = True
+							#print('self.nearestNeighbors[{}].keys() is {}.'.format(sampleIndex, self.nearestNeighbors[sampleIndex].keys()))
+					else:
+						pass
+		self.majorityVote()
 
 
 class Perceptron:
@@ -170,8 +186,6 @@ class Perceptron:
 		self.weights = {}
 		for feature in features:
 			self.weights[feature] = random.randint(0, 100) / 100.00
-		#print('initial weights are: ')
-		#print(self.weights)
 			
 
 	def train(self, featuresList, featuresListHot, labels, ratio):
@@ -200,18 +214,18 @@ class Perceptron:
 				else: 
 					pass
 			#'can_off', 'can_inc_cha_ope_sea'
-			normcOfficeOut = self.weights['can_off'] * 1.00 / 3.00 
+			normcOfficeOut = self.weights['can_off'] * 1.00 
 			if normcOfficeOut > 0.50 and label is False:
-				self.weights['can_off'] = self.weights['can_off'] + (1 - normcOfficeOut) * normcOfficeOut
+				self.weights['can_off'] = self.weights['can_off'] + (1.00 - normcOfficeOut) * normcOfficeOut
 			elif normcOfficeOut < 0.50 and label is True:
-				self.weights['can_off'] = self.weights['can_off'] + (0 - normcOfficeOut) * normcOfficeOut
+				self.weights['can_off'] = self.weights['can_off'] + (0.00 - normcOfficeOut) * normcOfficeOut
 			else:
 				pass
-			ncIncChalOut = self.weights['can_inc_cha_ope_sea'] * 1.00 / 3.00
+			ncIncChalOut = self.weights['can_inc_cha_ope_sea'] * 1.00
 			if ncIncChalOut > 0.50 and label is False:
-				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (1 - ncIncChalOut) * ncIncChalOut
+				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (1.00 - ncIncChalOut) * ncIncChalOut
 			elif normcOfficeOut < 0.50 and label is True:
-				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0 - ncIncChalOut) * ncIncChalOut
+				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0.00 - ncIncChalOut) * ncIncChalOut
 			else:
 				pass
 
@@ -222,7 +236,11 @@ class Perceptron:
 	def predict(self, features):
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
-		features = None
+		prediction = 0
+		for instance in self.testingData:
+			for feature in features:
+
+
 
 class MLP:
 	def __init__(self):
@@ -256,18 +274,6 @@ class ID3:
 		#Return list/array of predictions where there is one prediction for each set of features
 		features = None
 
-"""
-print('testing output formats and functions...')
-#all_categories = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
-categories = ['can_off', 'can_inc_cha_ope_sea']
-print('firstly, hot encode the panda data set...')
-encodedDataSet = encodeData(dataset, categories)
-print('getPythonList(encodedDataSet) returns type {}'.format(getPythonList(encodedDataSet)))
-#when do we need to normalize? what is normalize?
-"""
-
-
-
 
 #kNN
 kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
@@ -276,28 +282,12 @@ kNNencodedDataSet = encodeData(kNNnDataSet, kNNallFeatures[3:])
 features, labels = getNumpy(kNNencodedDataSet)
 print('kNN numpy features are: \n{}'.format(features))
 fiveNN = KNN(kNNencodedDataSet, 5)
-ratio = 0.5
-#commenting out for testing...03 December 2017 12:39
-fiveNN.train(kNNallFeatures, ratio)
+ratio = 0.70
+fiveNN.train(features, ratio)
 fiveNN.predict(kNNallFeatures, labels)
-print('nearest neighbors for fiveNN object after predict is {}'.format(fiveNN.nearestNeighbors))
-
-
-
-"""
-print('printing out first class object creation for KNN...')
-print('fiveNN.fullEncodedDataSetList is:\n{}'.format(fiveNN.dataset))
-print('attempting to find the feature / label portions of the list...')
-print('fiveNN.fullEncodedDataSetList is of length {}'.format(len(fiveNN.dataset)))
-print('methinks labels are in pos 0 which are of length {}'.format(len(fiveNN.dataset[0])))
-print('and then in equal size the pos 1 which is of length {}.'.format(len(fiveNN.dataset[1])))
-"""
-
-
-
-#tmpArray = [[no, netcon, totloa, canoff, canInc] for no, netcon, totloa, canoff, canInc in enumerate(fiveNN.trainingData)]
-#print('tmpArray:\n {}.'.format(tmpArray))
-
+print('length of fiveNN vote {} and testingData[\'winner\'] {}'.format(len(fiveNN.vote), len(fiveNN.testingData['winner'])))
+evaluationResult = evaluate(fiveNN.vote, fiveNN.testingData['winner'])
+print('evaluation result is {}'.format(evaluationResult))
 
 
 """
@@ -305,19 +295,19 @@ An object is classified by a majority vote of its neighbors, with the object bei
 the class most common among its k nearest neighbors (k is a positive integer, typically small). 
 If k = 1, then the object is simply assigned to the class of that single nearest neighbor.
 """
+#Perceptron
 PallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 PallFeaturesHot = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H',\
  'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER', 'can_inc_cha_ope_sea_OPEN']
 PallFeaturesBools = [ 'can_off', 'can_inc_cha_ope_sea' ]
 PnDataSet = normalizeData(dataset, PallFeaturesHot[:3])
-#print('PallFeatures[:3] is {}'.format(PallFeatures[:3]))
 PEncodedDataSet = encodeData(PnDataSet, PallFeaturesBools)
 pfeatures, plabels = getNumpy(PEncodedDataSet)
-#print('pfeatures looks like this: \n{}'.format(pfeatures))
 ratio = 0.5
 firstP = Perceptron(PEncodedDataSet, PallFeatures)
 print('firstP has weights of {}'.format(firstP.weights))
 firstP.train(PallFeatures, PallFeaturesHot, plabels, ratio)
+firstP.predict(PallFeaturesHot)
 
 #####NOTES SECTION#####
 #dont forget the bias
