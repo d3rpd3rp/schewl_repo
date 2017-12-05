@@ -12,7 +12,7 @@ dataset = pd.read_csv("data.csv")
 
 
 global timeCeiling
-timeCeiling = 5
+timeCeiling = 15
 
 
 #========================================== Data Helper Functions ==========================================
@@ -89,12 +89,22 @@ def hDist(xQ, xI):
 	#assumes tuples are of somewhat equal lenght (contain the range defined by positionRange)
 	#positionRange should be a tuple with a start and stop index...
 	d = 0
+	print('xQ is:\n{}'.format(xQ))
+	print('xI is:\n{}'.format(xI))
 	booleanFeatures = ['can_off_P', 'can_off_S', 'can_off_H', 'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER',\
 		'can_inc_cha_ope_sea_OPEN']
 	for feature in booleanFeatures:
 		if xQ[feature] is not xI[feature]:
 			d += 1
 	return d
+
+def stdDev(dataset, feature):
+	average = dataset[feature].sum() / len(dataset[feature])
+	sumD = 0
+	for i in range(0, len(dataset[feature])):
+		sumD += (i - average)**2
+	return math.sqrt(sumD / (len(dataset) - 1))
+	
 
 
 #===========================================================================================================
@@ -107,33 +117,27 @@ class KNN:
 		self.k = k
 		self.trainingData = None
 		self.testingData = None
-		self.nearestNeighbors = []
-		self.neighborsFound = []
-		self.vote = []
+		self.nearestNeighbors = {}
+		self.vote = {}
 
 	def majorityVote(self):
 		#k must be odd
-		self.vote = [random.choice([True, False]) for n in range(0, len(self.nearestNeighbors))]
 		#print('self.vote is of length {}'.format(len(self.vote)))
-		for index in range(0, len(self.nearestNeighbors)):
+		for key in self.nearestNeighbors.keys():
 			score = 0
-			for key in self.nearestNeighbors[index].keys(): 
-				score += self.nearestNeighbors[index][key][1]
+			#print('testObj is {} and of type({})'.format(testObj, type(testObj)))
+			#print('size of (self.nearestNeighbors.keys() is {}'.format(len(self.nearestNeighbors.keys())))
+			for neighbor in self.nearestNeighbors[key]:
+				score += self.nearestNeighbors[key][neighbor]
 			if self.k/2 < score:
-				self.vote[index] = True
+				self.vote[key] = True
 			else:
-				self.vote[index] = False
+				self.vote[key] = False
 			
 	def train(self, features, ratio):
 		#training logic here
 		#input is list/array of features and labels
 		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
-		#create dummy entry for initialization of the nearest neighbors dict
-		self.nearestNeighbors = [{5 : None} for j in range(0, len(self.testingData))]
-		self.neighborsFound = [False for k in range(0, len(self.testingData))]
-		for p in range(0, len(self.testingData)):
-			for i in range(0, self.k - 1):
-				self.nearestNeighbors[p][i + 6] = None
 
 	def predict(self, features, labels):
 		#Run model here
@@ -142,14 +146,26 @@ class KNN:
 		#will use the sum of all features to get started...
 		#nearestNeighbors will be a tuple of the instance data, totalCurrentNeighborDist, and outcome
 		#outcome is available from the training data
+		print('features in kNN predict is {}'.format(features))
+		startTime = time.time()
 		endTime = time.time() + timeCeiling
-		while time.time() < endTime:
-			testingIndex = random.randint(0, len(self.testingData) - 1)
-			numNeighborsFound = 0
-			while self.neighborsFound[testingIndex] is False:
-				trainingIndex = random.randint(0, len(self.trainingData) - 1)
+		for testingIndex in range(0, len(self.testingData)):
+			#testingIndex = random.randint(0, len(self.testingData) - 1)
+			#trainingIndex = random.randint(0, len(self.trainingData) - 1)
+			for trainingIndex in range(0, len(self.trainingData)):
 				label = bool(self.trainingData.loc[trainingIndex, 'winner'])
 				regressionValues = features[:3]
+				testingID = self.testingData.iloc[testingIndex]['can_id']
+				currentNeighborEDist = eDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex], regressionValues)
+				currentNeighborHDist = hDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex])
+				currentNeighborHDist = currentNeighborHDist / 2.00
+				totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
+				#print('self.nearestNeighbors[testingID] is {}'.format(self.nearestNeighbors[testingID]))	
+				self.nearestNeighbors[testingID] = {}
+				self.nearestNeighbors[testingID][totalCurrentNeighborDist] = label
+			#while len(self.nearestNeighbors[testingID]) < self.k:
+				trainingIndex = random.randint(0, len(self.trainingData) - 1)
+				label = bool(self.trainingData.loc[trainingIndex, 'winner'])
 				currentNeighborEDist = eDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex], regressionValues)
 				currentNeighborHDist = hDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex])
 				#attempt at normalizing the hamming distance, since types are mutually exclusive,
@@ -158,18 +174,14 @@ class KNN:
 				#and the boolean 'hot encoded' values are only 2
 				#but does it make sense to add hammming dist to euclidean dist?
 				totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
-				currentMax = max(k for k in self.nearestNeighbors[testingIndex].iterkeys())
+				currentMax = max(k for k in self.nearestNeighbors[testingID].iterkeys())
 				if currentMax is None:
-					numNeighborsFound += 1
-					self.nearestNeighbors[testingIndex][totalCurrentNeighborDist] = (self.testingData.iloc[testingIndex], label) 				
-				elif totalCurrentNeighborDist < currentMax and not totalCurrentNeighborDist in self.nearestNeighbors[testingIndex].keys():
-					del self.nearestNeighbors[testingIndex][currentMax]
-					self.nearestNeighbors[testingIndex][totalCurrentNeighborDist] = (self.testingData.iloc[testingIndex], label)
-					numNeighborsFound += 1
-					if numNeighborsFound > 4:
-						self.neighborsFound[testingIndex] = True
+					self.nearestNeighbors[testingID][totalCurrentNeighborDist] = label				
+				elif (totalCurrentNeighborDist < currentMax) and not (totalCurrentNeighborDist in self.nearestNeighbors[testingID].iterkeys()):
+					self.nearestNeighbors[testingID][totalCurrentNeighborDist] = label
 				else:
 					pass
+			print('found {} neighbors for id {}'.format(len(self.nearestNeighbors[testingID]), testingID))
 		self.majorityVote()
 
 
@@ -286,15 +298,29 @@ class ID3:
 #kNN
 kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 kNNnDataSet = normalizeData(dataset, kNNallFeatures[:3])
+print('kNNallFeatures[3:] {}'.format(kNNallFeatures[3:]))
 kNNencodedDataSet = encodeData(kNNnDataSet, kNNallFeatures[3:])
 features, labels = getNumpy(kNNencodedDataSet)
-print('kNN numpy features are: \n{}'.format(features))
-fiveNN = KNN(kNNencodedDataSet, 5)
+kNNObj = KNN(kNNencodedDataSet, 7)
 ratio = 0.5
-fiveNN.train(features, ratio)
-fiveNN.predict(kNNallFeatures, labels)
-print('length of fiveNN vote {} and testingData[\'winner\'] {}'.format(len(fiveNN.vote), len(fiveNN.testingData['winner'])))
-evaluationResult = evaluate(fiveNN.vote, fiveNN.testingData['winner'])
+kNNObj.train(features, ratio)
+kNNObj.predict(kNNallFeatures, labels)
+#print('keys for NN component are {}'.format(kNNObj.nearestNeighbors.keys()))
+netOpeExp = stdDev(kNNencodedDataSet, 'net_ope_exp')
+print('length of fiveNN vote {} and testingData[\'winner\'] {}'.format(len(kNNObj.vote), len(kNNObj.testingData['winner'])))
+numWinVote = 0
+#pair vote results based on can_id with testing data labels
+for canID in kNNObj.testingData['can_id']:
+	if canID in kNNObj.vote.keys() and kNNObj.vote[canID] is True:
+		#print('found id {} in vote dict is {}'.format(canID, kNNObj.vote[canID]))
+		numWinVote += 1
+numWinTest = 0
+for result in kNNObj.testingData['winner']:
+	if result is True:
+		numWinTest += 1
+print('number of winners in kNNObj.vote is {}, number of winners in testing data is {}'.format(numWinVote, numWinTest))
+
+evaluationResult = evaluate(kNNObj.vote, kNNObj.testingData['winner'])
 print('evaluation result is {}'.format(evaluationResult))
 
 
