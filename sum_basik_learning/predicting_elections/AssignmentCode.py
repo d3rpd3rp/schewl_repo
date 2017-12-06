@@ -137,6 +137,7 @@ class KNN:
 		#training logic here
 		#input is list/array of features and labels
 		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
+		print('size of self.trainingData is {} and self.testingData {}'.format(len(self.trainingData), len(self.testingData)))
 
 	def predict(self, features, labels):
 		#Run model here
@@ -163,9 +164,9 @@ class KNN:
 					label = bool(self.trainingData.loc[trainingIndex, 'winner'])
 					regressionValues = features[:3]
 					currentNeighborEDist = eDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex], regressionValues)
-					#currentNeighborHDist = hDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex])
-					#currentNeighborHDist = currentNeighborHDist / 2.00
-					totalCurrentNeighborDist = currentNeighborEDist #+ currentNeighborHDist
+					currentNeighborHDist = hDist(self.testingData.iloc[testingIndex], self.trainingData.iloc[trainingIndex])
+					currentNeighborHDist = currentNeighborHDist / 2.00
+					totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
 					#attempt at normalizing the hamming distance, since types are mutually exclusive,
 					#the max distance for Hamming is 2
 					#and the boolean 'hot encoded' values are only 2
@@ -297,20 +298,21 @@ kNNnDataSet = normalizeData(dataset, kNNallFeatures[:3])
 kNNencodedDataSet = encodeData(kNNnDataSet, kNNallFeatures[3:])
 features, labels = getNumpy(kNNencodedDataSet)
 kNNObj = KNN(kNNencodedDataSet, 7)
-ratio = 0.5
-kNNObj.train(features, ratio)
-kNNObj.predict(kNNallFeatures, labels)
-kNNObj.majorityVote()
-#match can_ids between predictions (kNNObj.vote['can_id']) and
-#testing data (kNNObj.testingData['winner'])
-predictions = []
-actuals = []
-for index in range(0, len(kNNObj.testingData)):
-	canID = kNNObj.testingData.iloc[index]['can_id']
-	predictions.append(kNNObj.vote[canID])
-	actuals.append(kNNObj.testingData.iloc[index]['winner'])
-evaluationResult = evaluate(predictions, actuals)
-print('evaluation result is {}'.format(evaluationResult))
+for ratio in [0.10, 0.125, 0.15, 0.175, 0.20]:
+	#ratio = 0.5
+	kNNObj.train(features, ratio)
+	kNNObj.predict(kNNallFeatures, labels)
+	kNNObj.majorityVote()
+	#match can_ids between predictions (kNNObj.vote['can_id']) and
+	#testing data (kNNObj.testingData['winner'])
+	predictions = []
+	actuals = []
+	for index in range(0, len(kNNObj.testingData)):
+		canID = kNNObj.testingData.iloc[index]['can_id']
+		predictions.append(kNNObj.vote[canID])
+		actuals.append(kNNObj.testingData.iloc[index]['winner'])
+	evaluationResult = evaluate(predictions, actuals)
+	print('evaluation result for ratio {} is {}'.format(ratio, evaluationResult))
 
 
 """
@@ -329,8 +331,8 @@ pfeatures, plabels = getNumpy(PEncodedDataSet)
 ratio = 0.5
 firstP = Perceptron(PEncodedDataSet, PallFeatures)
 print('firstP has weights of {}'.format(firstP.weights))
-#firstP.train(PallFeatures, PallFeaturesHot, plabels, ratio)
-#firstP.predict(PallFeaturesHot)
+firstP.train(PallFeatures, PallFeaturesHot, plabels, ratio)
+firstP.predict(PallFeaturesHot)
 
 #####NOTES SECTION#####
 #dont forget the bias
