@@ -12,7 +12,7 @@ dataset = pd.read_csv("data.csv")
 
 
 global timeCeiling
-timeCeiling = 60
+timeCeiling = 15
 
 
 #========================================== Data Helper Functions ==========================================
@@ -181,7 +181,6 @@ class KNN:
 						else:
 							pass
 
-
 class Perceptron:
 	def __init__(self, dataset, features):
 		#Perceptron state here
@@ -191,36 +190,44 @@ class Perceptron:
 		#randomly initialize weights for the features
 		#weights between 0 and 1
 		self.weights = {}
-		for feature in features:
-			self.weights[feature] = random.randint(0, 100) / 100.00
-		self.predictions = []
+		self.predictions = {}
 			
 
-	def train(self, featuresList, featuresListHot, labels, ratio):
+	def train(self, featuresListHot):
 		#print initial weights for comparison
 		print('start of training: weights are now {}'.format(self.weights))
-		#training logic here
-		self.trainingData, self.testingData = trainingTestData(self.dataset, ratio)
-		numericFeaturesList = featuresList[:3]
+		#training logic here		
+		numericFeaturesList = featuresListHot[:3]
 		cOfficeHotList = featuresListHot[3:6]
 		cIncChalHotList = featuresListHot[6:9]
+		print('numeric features are {}'.format(numericFeaturesList))
 		print('cOfficeHotList is {}. \ncIncChalHotList is {}.'.format(cOfficeHotList, cIncChalHotList))
 		#input is list/array of features and labels
 		endTime = time.time() + timeCeiling
 		while time.time() < endTime:
 			index = random.randint(0, len(self.trainingData) - 1)
-			label = bool(self.trainingData.loc[index, 'winner'])
+			label = bool(self.trainingData.iloc[index]['winner'])
 			for nfeature in numericFeaturesList:
 				#create the hyperplane to crossect as True or False (1, 0)
-				currentOut = self.weights[nfeature] * float(self.trainingData.loc[index, nfeature])
 				#since all data is normalized, the currentOut should be between 0 and 1
 				#w = w_original + (desired_output - current_ouput) * input_value
-				if currentOut < 0 and label is True:
-					self.weights[nfeature] = self.weights[nfeature] + (0 - currentOut) * float(self.trainingData.loc[index, nfeature])
-				elif currentOut > 0 and label is False:
-					self.weights[nfeature] = self.weights[nfeature] + (1 - currentOut) * float(self.trainingData.loc[index, nfeature])
-				else: 
-					pass
+				if nfeature in self.weights.keys():
+					currentOut = self.weights[nfeature] * float(self.trainingData.iloc[index][nfeature])
+					if currentOut < 0 and label is True:
+						self.weights[nfeature] = self.weights[nfeature] + (0.00 - currentOut) * float(self.trainingData.iloc[index][nfeature])
+					elif currentOut > 0 and label is False:
+						self.weights[nfeature] = self.weights[nfeature] + (1.00 - currentOut) * float(self.trainingData.iloc[index][nfeature])
+					else: 
+						pass
+				else:
+					if label is True:
+						self.weights[nfeature] = float(self.trainingData.iloc[index][nfeature])
+					else:
+						self.weights[nfeature] = 1.00 - float(self.trainingData.iloc[index][nfeature])
+
+			#need to rewrite this
+			#no init for weights of the booleans...
+			
 			#'can_off', 'can_inc_cha_ope_sea'
 			normcOfficeOut = self.weights['can_off'] * 1.00 
 			if normcOfficeOut > 0 and label is False:
@@ -236,7 +243,6 @@ class Perceptron:
 				self.weights['can_inc_cha_ope_sea'] = self.weights['can_inc_cha_ope_sea'] + (0.00 - ncIncChalOut) * ncIncChalOut
 			else:
 				pass
-
 		print('finished Perceptron training...')
 		print('weights are now {}'.format(self.weights))
 
@@ -244,19 +250,18 @@ class Perceptron:
 	def predict(self, features):
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
-		self.predictions = [(None, -1) for n in range(0, len(self.testingData))]
+		#for pIndex in range(0, len(self.testingData)):
+			#self.predictions[self.testingData.iloc[pIndex]] = None
 		for index in range(0, len(self.testingData)):
-			results = []
+			print('self.testingData.iloc[{}] has keys {}'.format(index, self.testingData.iloc[index].keys()))
+			maxValuePair = (0, None)
 			for feature in features:
-				print('self.weights[feature] is {}'.format(self.weights[feature]))
-				print('self.testingData[index] is of type {}'.format(type(self.testingData[index])))
-				results.append(self.weights[feature] * self.testingData[index][feature])
-			if max(results)	> 0:
-				self.predictions[index] = (testingData[index], True)
-			elif max(results) < 0:
-				self.predictions[index] = (testingData[index], False)
-			else:
-				pass
+				resultVector = self.weights[feature] * self.testingData.iloc[index][feature]
+				if abs(maxValuePair[0]) < abs(resultVector):
+					maxValuePair = (resultVector, self.testingData.iloc[index][feature]) 
+				else:
+					pass
+			self.predictions[maxValuePair[1]] = maxValuePair[0]
 
 
 class MLP:
@@ -291,7 +296,7 @@ class ID3:
 		#Return list/array of predictions where there is one prediction for each set of features
 		features = None
 
-
+"""
 #kNN
 kNNallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 kNNnDataSet = normalizeData(dataset, kNNallFeatures[:3])
@@ -313,7 +318,7 @@ for ratio in [0.10, 0.125, 0.15, 0.175, 0.20]:
 		actuals.append(kNNObj.testingData.iloc[index]['winner'])
 	evaluationResult = evaluate(predictions, actuals)
 	print('evaluation result for ratio {} is {}'.format(ratio, evaluationResult))
-
+"""
 
 """
 An object is classified by a majority vote of its neighbors, with the object being assigned to 
@@ -324,15 +329,19 @@ If k = 1, then the object is simply assigned to the class of that single nearest
 PallFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 PallFeaturesHot = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H',\
  'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER', 'can_inc_cha_ope_sea_OPEN']
-PallFeaturesBools = [ 'can_off', 'can_inc_cha_ope_sea' ]
-PnDataSet = normalizeData(dataset, PallFeaturesHot[:3])
+#PallFeaturesBools = [ 'can_off', 'can_inc_cha_ope_sea' ]
+ratio = 0.5
+nPDataset = normalizeData(dataset, PallFeaturesHot[:3])
+firstP = Perceptron(nPDataset, PallFeatures)
+firstP.trainingData, firstP.testingData = trainingTestData(firstP.dataset, ratio)
+
+#training data
 PEncodedDataSet = encodeData(PnDataSet, PallFeaturesBools)
 pfeatures, plabels = getNumpy(PEncodedDataSet)
-ratio = 0.5
-firstP = Perceptron(PEncodedDataSet, PallFeatures)
+
 print('firstP has weights of {}'.format(firstP.weights))
-firstP.train(PallFeatures, PallFeaturesHot, plabels, ratio)
-firstP.predict(PallFeaturesHot)
+firstP.train(PallFeaturesHot)
+firstP.predict(PallFeatures)
 
 #####NOTES SECTION#####
 #dont forget the bias
