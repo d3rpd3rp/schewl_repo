@@ -176,7 +176,7 @@ class Perceptron:
 		#randomly initialize weights for the features
 		#weights between -0.01 and 0.01
 		self.weights = {}
-		self.predictions = {}
+		self.predictions = []
 		self.bias = 1.000000
 
 	def preprocess(self, dataset):
@@ -200,10 +200,6 @@ class Perceptron:
 		print('start of training: weights are now {}'.format(self.weights))
 		#training logic here		
 		#input is list/array of features and labels
-		#endTime = time.time() + timeCeiling
-		startTime = time.time()
-		#while time.time() < endTime:
-			#index = random.randint(0, len(self.trainingData) - 1)
 		continuousFeatures = self.rawFeatures[:3]
 		booleanFeatures = self.encodedFeatures[3:]
 		adjustments = [0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -214,27 +210,15 @@ class Perceptron:
 			for cfposition in range(0, len(self.encodedFeatures)):
 				currentOut = self.weights[cfposition] * trainingInstance[cfposition] + self.bias
 				if currentOut < 0 and trainingLabel == 1:
-					#print('currentOut is less than 0 and label is true, current weight is {}'.format(self.weights[fposition]))
 					self.weights[cfposition] = self.weights[cfposition] + (1.000000 - currentOut) * trainingInstance[cfposition]
 					self.bias = self.weights[cfposition] * trainingInstance[cfposition] + self.bias
-					#print('new weight is {}'.format(self.weights[fposition]))
 					adjustments[cfposition] += 1 
 				elif currentOut > 0 and trainingLabel == 0:
 					self.weights[cfposition] = self.weights[cfposition] + (0.000000 - currentOut) * trainingInstance[cfposition]
 					self.bias = self.weights[cfposition] * trainingInstance[cfposition] - self.bias
 					adjustments[cfposition] += 1 
 				else:
-					#print('inside else...self.weights[{}] is {} and label is {}'.format(fposition, self.weights[fposition], trainingLabel)) 
 					pass
-			"""
-			#in this case, the individual sample will either equal or not the comparison
-			#weight will just flip flop sign...???
-			#will apply left shift to move through discrete data fields
-			leftShift = len(continuousFeatures)
-			for dfposition in range(0 + leftShift , (leftShift + len(self.rawFeatures))):
-				currentOut = self.weights[dfposition] * trainingInstance[dfposition]
-				if trainingInstance[dEncfposition] == trainingLabel:
-			"""
 
 		print('end of training: bias is {}, weights are now {}'.format(self.bias, self.weights))
 		print('{} adjustments were made.'.format(adjustments))
@@ -242,9 +226,33 @@ class Perceptron:
 	def predict(self):
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
-		feature = None
+		for testingInstance in self.testingFeatures:
+			#find largest vector
+			largestScalar = 0
+			lposition = None
+			for fposition in range(0, len(self.weights)):
+				#print('self.weights[{}], testingInstance, bias are {}, {}, {}'.format(fposition, self.weights[fposition], testingInstance[fposition],  self.bias))
+				scalar = abs(self.weights[fposition] * testingInstance[fposition] + self.bias) 
+				#print('scalar value is {}'.format(scalar))
+				if largestScalar < scalar:
+					 largestScalar = scalar
+					 lposition = fposition
+				else:
+					pass
+			if 0 < self.weights[lposition] * testingInstance[lposition]:
+				self.predictions.append(1)
+			elif self.weights[lposition] * testingInstance[lposition] < 0:
+				self.predictions.append(0)
+			else:
+				print('weights[{}] * testingInstance[{}] is {}'.format(lposition, lposition, (self.weights[lposition] * testingInstance[lposition])))
+		incorrectCount = 0
+		for prediction, label in zip(self.predictions, self.testingLabels):
+			if prediction != label:
+				incorrectCount += 1
+		print('{} incorrect, sizes of predictions and testingLabels are {} and {}'.format(incorrectCount, len(self.predictions), len(self.testingLabels)))
 
-"""
+
+
 class MLP:
 	def __init__(self):
 		#Multilayer perceptron state here
@@ -258,6 +266,7 @@ class MLP:
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
 
+"""
 class ID3:
 	def __init__(self):
 		#Decision tree state here
@@ -271,7 +280,3 @@ class ID3:
 		#Run model here
 		#Return list/array of predictions where there is one prediction for each set of features
 """
-features = []
-model = Perceptron()
-model.preprocess(dataset)
-model.train()
