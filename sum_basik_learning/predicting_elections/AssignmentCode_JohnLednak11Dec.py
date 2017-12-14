@@ -73,7 +73,7 @@ class KNN:
     def __init__(self):
         # KNN state here
         # Feel free to add methods
-        self.k = 7
+        self.k = 5
 
     #####CAUTION AREA, STUDENT DEFINED METHODS!!!######
     def eDist(self, xQ, xI):
@@ -87,7 +87,6 @@ class KNN:
 
     def hDist(self, xQ, xI):
         # hamming distance function
-        print("hDist received xQ and xI of types {} and {}.  Values of {} and {}.".format(type(xQ), type(xI), xQ, xI))
         d = 0
         for i in range(3, 9):
             if xQ[i] is not xI[i]:
@@ -106,16 +105,14 @@ class KNN:
     def predict(self, features):
         # Run model here
         # Return list/array of predictions where there is one prediction for each set of features
-        self.vote = [None] * (len(features) - 1)
+        self.vote = [None] * len(features)
         self.predictions= []
         startTime = time.time()
         for testingIndex in range(0, len(features)):
-            nearestNeighbors = [(float('inf'), None) * self.k]
-            currentMaxNeighbor = None
-            self.vote[testingIndex] = None
+            #normalized Euclidean values are between [0,1], max hamming distance 2, so setting the value to 5
+            nearestNeighbors = [(5, None)] * self.k
             for trainingIndex in range(0, len(self.trainingFeatures)):
                 trainingLabel = bool(self.trainingLabels[trainingIndex])
-                continuousValues = features[:3]
                 currentNeighborEDist = self.eDist(features[testingIndex], self.trainingFeatures[trainingIndex])
                 currentNeighborHDist = self.hDist(features[testingIndex], self.trainingFeatures[trainingIndex])
                 # an attempt to normalize the Hamming Distance, max distance of 2.00 (both attributes differ)
@@ -123,26 +120,31 @@ class KNN:
                 totalCurrentNeighborDist = currentNeighborEDist + currentNeighborHDist
                 # and the boolean 'hot encoded' values are only {0, 1, 2}
                 # but does it make sense to add hammming dist to euclidean dist?
-                if currentMaxNeighbor is None:
-                    nearestNeighbors[0] = (totalCurrentNeighborDist, trainingLabel)
-                    maxNeighborIndex = 0
-                else:
-                    currentMaxNieghbor = max(l[0] for l in nearestNeighbors)
-                    maxNeighborIndex = nearestNeighbors.index(currentMaxNieghbor)
-                #print('maxNeighborIndex ends up at {} and the neighbor is {}'.format(maxNeighborIndex, nearestNeighbors))
-                nearestNeighbors[maxNeighborIndex] = (totalCurrentNeighborDist, trainingLabel)
-                print('end of for loop for training...')
-                #print('nearestNeighbors[{}] is {}'.format(testingIndex, nearestNeighbors))
-            if not (self.k / 2) <= [x[1] for x in nearestNeighbors].sum():
-                vote[testingIndex] = True
+                currentMaxNeighbor = max(nearestNeighbors, key=lambda x:x[0])
+                print('currentMaxNeighbor[0] is {}, totalCurrentNeighborDist is {}'.format(currentMaxNeighbor[0], totalCurrentNeighborDist))
+                print('nearestNeighbors is {}'.format(nearestNeighbors))
+                if totalCurrentNeighborDist < currentMaxNeighbor[0]:
+                    for index, pair in enumerate(nearestNeighbors):
+                        print('pair[0] is {} and currentMaxNeighbor is {}'.format(pair[0], currentMaxNeighbor))
+                        if pair[0] == currentMaxNeighbor[0]:
+                            nearestNeighbors[index] = (totalCurrentNeighborDist, trainingLabel)
+                            break
+            score = 0
+            print('nearestNeightbors is {}'.format(nearestNeighbors))
+            print('trainingLabel is {}'.format(trainingLabel))
+            for pair in nearestNeighbors:
+                print('pair is {}'.format(pair))
+                score += int(pair[1])
+            print('score is {}'.format(score))
+            if (self.k / 2) <= score:
+                self.vote[testingIndex] = True
             else:
-                vote[testingIndex] = False
+                self.vote[testingIndex] = False
+            print('vote is {}'.format(self.vote[testingIndex]))
         endTime = time.time()
         print('the prediction took {} s.'.format(abs(startTime - endTime)))
 
-        for testingIndex in range(0, len(features)):
-            predictions.append(self.vote[testingIndex])
-        return (predictions)
+        return (self.vote)
 
 
 class Perceptron:
@@ -388,20 +390,22 @@ hotEncFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S',
 nDataSet = normalizeData(dataset, baseFeatures[:3])
 encNormDataset = encodeData(nDataSet, baseFeatures[3:])
 
-
+"""
 # KNN
 KNNRatio = 0.1
 KNNtrainingData, KNNtestingData = trainingTestData(encNormDataset, KNNRatio)
 KNNtrainingFeatures, KNNtrainingLabels = getNumpy(KNNtrainingData)
 KNNtestingFeatures, KNNtestingLabels = getNumpy(KNNtestingData)
 
-print('KNNtestingFeatures column 2 {}'.format(KNNtestingFeatures[2]))
-
 K = KNN()
 K.train(KNNtrainingFeatures, KNNtrainingLabels)
 predictions = K.predict(KNNtestingFeatures)
 
+accuracy = evaluate(KNNtestingLabels, predictions)
+print('accuracy for KNN is {}%'.format(accuracy))
+
 """
+
 P = Preceptron()
 P.preproces(dataset)
 P.train()
