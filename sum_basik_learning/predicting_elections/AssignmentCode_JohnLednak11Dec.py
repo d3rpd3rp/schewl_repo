@@ -401,16 +401,19 @@ class ID3:
     def __init__(self):
         #Decision tree state here
         #['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
+        self.featureOrder = []
+        self.featurePositions = [0, 1, 2, 3, 6]
+        self.verdicts = [None] * 5
 
     def entropyMeasure(self, instanceSet, labelSet, featureLocation):
         #entropy of the set
-        winners = float(labelSet.sum() / len(labelSet))
-        losers = float(len(labelSet) - winners)
-        setEntropy = float(-(winners * math.log2(winners)) - (losers * math.log2(losers)))
-        if featureLocation == 0 or featureLocation == 2:
+        winners = np.sum(labelSet)
+        losers = len(labelSet) - winners
+        setEntropy = float(-(winners * math.log(winners, 2)) - (losers * math.log(losers, 2)))
+        if featureLocation == 0 or featureLocation == 1:
             above = []
             below = []
-            mean = instanceSet[featureLocation].sum() / len(instanceSet.shape[0])
+            mean = float(sum(instanceSet[featureLocation])) / len(instanceSet)
             for instance, label in zip(instanceSet, labelSet):
                 if instance[featureLocation] <= mean:
                     below.append(label)
@@ -418,83 +421,274 @@ class ID3:
                     above.append(label)
             pAbove = float(len(above) / len(labelSet))
             pBelow = float(len(below) / len(labelSet))
-            eAbove = float(-(above.sum() * math.log2(above.sum())) - ((len(labelSet) - above.sum()) * math.log2(len(labelSet) - above.sum())))
-            eBelow = float(-(below.sum() * math.log2(below.sum())) - ((len(labelSet) - below.sum()) * math.log2(len(labelSet) - below.sum())))
+            if 0 < sum(above):
+                eAbove = float(-(sum(above) * math.log(sum(above), 2.0)) - (len(labelSet) - sum(above) * math.log(len(labelSet) - sum(above), 2.0)))
+            else:
+                eAbove = 1.0
+            if 0 < sum(below):
+                eBelow = float(-(sum(below) * math.log(sum(below), 2.0)) - (len(labelSet) - sum(below) * math.log(len(labelSet) - sum(below), 2.0)))
+            else:
+                eBelow = 1.0
             subSetEntropy = pAbove * eAbove + pBelow * eBelow
             gain = float(setEntropy - subSetEntropy)
             return gain
-        elif featureLocation == 3:
+        elif featureLocation == 2:
             have = []
             haveNot = []
             for instance, label in zip(instanceSet, labelSet):
-                if instance[featureLocation] < 1:
+                if 0 < instance[featureLocation]:
                     haveNot.append(label)
                 else:
                     have.append(label)
             pHave = float(len(have) / len(labelSet))
             pHaveNot = float(len(haveNot) / len(labelSet))
-            eHave = float(-(have.sum() * math.log2(have.sum())) - ((len(labelSet) - have.sum()) * math.log2(len(labelSet) - have.sum())))
-            eHaveNot = float(-(haveNot.sum() * math.log2(haveNot.sum())) - ((len(labelSet) - haveNot.sum()) * math.log2(len(labelSet) - haveNot.sum())))
+            eHave = float(-(sum(have) * math.log(sum(have), 2.0)) - (len(labelSet) - sum(have) * math.log(len(labelSet) - sum(have), 2.0)))
+            eHaveNot = float(-(sum(haveNot) * math.log(sum(haveNot), 2.0)) - ((len(labelSet) - sum(haveNot) * math.log(len(labelSet) - sum(haveNot), 2.0))))
             subSetEntropy = pHave * eHave + pHaveNot * eHaveNot
             gain = float(setEntropy - subSetEntropy)
             return gain
-        elif featureLocation == 4:
+        elif featureLocation == 3 or featureLocation == 6:
             cat1 = []
             cat2 = []
             cat3 = []
             for instance, label in zip(instanceSet, labelSet):
-                if instance[featureLocation] == 1:
+                if 0 < instance[featureLocation]:
                     cat1.append(label)
-                elif instance[featureLocation + 1] == 1:
+                elif 0 < instance[featureLocation + 1]:
                     cat2.append(label)
-                elif: instance[featureLocation + 2] == 1:
+                elif 0 < instance[featureLocation + 2]:
                     cat3.append(label)
                 else:
                     print('Looking at office, no suitable entry found.')
-            pCat1 = len(cat1) / len(labelSet)
-            pCat2 = len(cat2) / len(labelSet)
-            pCat3 = len(cat3) / len(labelSet)
 
-            eCat1 = float(-(cat1.sum() * math.log2(cat1.sum())) - (cat2.sum() * math.log2(meanBelow)))
-            eCat2 = float(-(meanAbove * math.log2(meanAbove)) - (meanBelow * math.log2(meanBelow)))
-            eCat3 = float(-(meanAbove * math.log2(meanAbove)) - (meanBelow * math.log2(meanBelow)))
+            pCat1 = float(len(cat1)) / len(labelSet)
+            pCat2 = float(len(cat2)) / len(labelSet)
+            pCat3 = float(len(cat3)) / len(labelSet)
 
-        elif featureLocation == 7:
+            if 0 < sum(cat1):
+                eCat1 = float(-(sum(cat1) * math.log(sum(cat1), 2.0)) - (len(labelSet) - sum(cat1) * math.log(len(labelSet) - sum(cat1), 2.0)))
+            else:
+                eCat1 = 1.0
+            if 0 < sum(cat2):
+                eCat2 = float(-(sum(cat2) * math.log(sum(cat2), 2.0)) - (len(labelSet) - sum(cat2) * math.log(len(labelSet) - sum(cat2), 2.0)))
+            else:
+                eCat2 = 1.0
+            if 0 < sum(cat3):
+                eCat3 = float(-(sum(cat3) * math.log(sum(cat3), 2.0)) - (len(labelSet) - sum(cat3) * math.log(len(labelSet) - sum(cat3), 2.0)))
+            else:
+                eCat3 = 1.0
+
+            subSetEntropy = pCat1 * eCat1 + pCat2 * eCat2 + pCat3 * eCat3
+            gain = float(setEntropy - subSetEntropy)
+            return gain
         else:
             print('sent improper feature location to entropy function...')
-
-
-
-
-
-
 
 
     def train(self, features, labels):
         #training logic here
         #input is list/array of features and labels
-        #bucket is 5, meaning only 5 instances can fit in each one...
+        infoGains = []
         if len(features) == 0:
             return
-        for flocation in range(0, features.shape[1]):
+        else:
+            self.treeFunc(features, labels, self.featurePositions)
+
+
+    def treeFunc(self, features, labels, featureLocationList):
+        if len(self.featurePositions) < 2:
+            self.decider(features, self.featurePositions[0], labels)
+        elif len(features) < 5:
+            return
+        else:
+            infoGains = []
+            for fLocation in featureLocationList:
+                infoGains.append([self.entropyMeasure(features, labels, fLocation), fLocation])
+            infoGainFeatureLocation = max(infoGains, key=lambda x: x[0])[1]
+            self.featureOrder.append(infoGainFeatureLocation)
+            if infoGainFeatureLocation < 3:
+                subset1, labels1, subset2, labels2 = self.split(features, infoGainFeatureLocation, labels)
+                self.featurePositions.remove(infoGainFeatureLocation)
+                self.treeFunc(subset1, labels1, featureLocationList)
+                self.treeFunc(subset2, labels2, featureLocationList)
+            else:
+                subset1, labels1, subset2, labels2, subset3, labels3 = self.split(features, infoGainFeatureLocation, labels)
+                self.featurePositions.remove(infoGainFeatureLocation)
+                self.treeFunc(subset1, labels1, featureLocationList)
+                self.treeFunc(subset2, labels2, featureLocationList)
+                self.treeFunc(subset3, labels3, featureLocationList)
+
+
+    def split(self, features, featureLocation, labels=None):
+        if featureLocation == 0 or featureLocation == 1:
+            aboveFeatureSet = []
+            belowFeatureSet = []
+            aboveLabels = []
+            belowLabels = []
+            mean = float(sum(features[featureLocation])) / len(features)
+            for instance, label in zip(features, labels):
+                if instance[featureLocation] <= mean:
+                    belowLabels.append(label)
+                    belowFeatureSet.append(instance)
+                else:
+                    aboveLabels.append(label)
+                    aboveFeatureSet.append(instance)
+            return aboveFeatureSet, aboveLabels, belowFeatureSet, belowLabels
+
+        elif featureLocation == 2:
+            haveFeatureSet = []
+            haveLabels = []
+            haveNotFeatureSet = []
+            haveNotLabels = []
+            for instance, label in zip(features, labels):
+                if 0 < instance[featureLocation]:
+                    haveNotLabels.append(label)
+                    haveNotFeatureSet.append(instance)
+                else:
+                    haveLabels.append(label)
+                    haveFeatureSet.append(instance)
+            return haveFeatureSet, haveLabels, haveNotFeatureSet, haveNotLabels
+
+        elif featureLocation == 3 or featureLocation == 6:
+            cat1FeatureSet = []
+            cat1LabelSet = []
+            cat2FeatureSet = []
+            cat2LabelSet = []
+            cat3FeatureSet = []
+            cat3LabelSet = []
+            for instance, label in zip(features, labels):
+                if 0 < instance[featureLocation]:
+                    cat1LabelSet.append(label)
+                    cat1FeatureSet.append(instance)
+                elif 0 < instance[featureLocation + 1]:
+                    cat2LabelSet.append(label)
+                    cat2FeatureSet.append(instance)
+                elif 0 < instance[featureLocation + 2]:
+                    cat3LabelSet.append(label)
+                    cat3FeatureSet.append(instance)
+                else:
+                    print('Looking at office, no suitable entry found.')
+            return cat1FeatureSet, cat1LabelSet, cat2FeatureSet, cat2LabelSet, cat3FeatureSet, cat3LabelSet
+
+    def decider(self, features, featureLocation, labels=None):
+        if featureLocation == 0 or featureLocation == 1:
+            if labels is not None:
+                self.verdicts[featureLocation] = [0, 0, 0, 0, 0]
+                bucketNumber = 5.0
+                rangeIncrement = largestValue / bucketNumber
+                for instance, label in zip(features, labels):
+                    if instance[featureLocation] <= rangeIncrement:
+                        if label is True:
+                            self.verdicts[featureLocation][0] += 1
+                        else:
+                            self.verdicts[featureLocation][0] -= 1
+                    elif rangeIncrement < instance[featureLocation] <= 2.0 * rangeIncrement:
+                        if label is True:
+                            self.verdicts[featureLocation][1] += 1
+                        else:
+                            self.verdicts[featureLocation][1] -= 1
+                    elif 2.0 * rangeIncrement < instance[featureLocation] <= 3.0 * rangeIncrement:
+                        if label is True:
+                            self.verdicts[featureLocation][2] += 1
+                        else:
+                            self.verdicts[featureLocation][2] -= 1
+                    elif 3.0 * rangeIncrement < instance[featureLocation] <= 4.0 * rangeIncrement:
+                        if label is True:
+                            self.verdicts[featureLocation][3] += 1
+                        else:
+                            self.verdicts[featureLocation][3] -= 1
+                    else:
+                        if label is True:
+                            self.verdicts[featureLocation][4] += 1
+                        else:
+                            self.verdicts[featureLocation][4] -= 1
+            else:
+                predictions = []
+                largestValue = max(features[featureLocation])
+                bucketNumber = 5.0
+                rangeIncrement = largestValue / bucketNumber
+                for instance in features:
+                    if instance[featureLocation] <= rangeIncrement:
+                        predictions.append(self.verdicts[featureLocation][0])
+                    elif rangeIncrement < instance[featureLocation] <= 2.0 * rangeIncrement:
+                        predictions.append(self.verdicts[featureLocation][1])
+                    elif 2.0 * rangeIncrement < instance[featureLocation] <= 3.0 * rangeIncrement:
+                        predictions.append(self.verdicts[featureLocation][2])
+                    elif 3.0 * rangeIncrement < instance[featureLocation] <= 4.0 * rangeIncrement:
+                        predictions.append(self.verdicts[featureLocation][3])
+                    else:
+                        predictions.append(self.verdicts[featureLocation][4])
+                return predictions
+
+        elif featureLocation == 2:
+            if labels is not None:
+                self.verdicts[featureLocation] = [0, 0]
+                for instance, label in zip(features, labels):
+                    print('instance is {}'.format(instance))
+                    print('LABEL is {}'.format(label))
+                    if 0 < instance[featureLocation]:
+                        if label is True:
+                            self.verdicts[featureLocation][0] += 1
+                        else:
+                            self.verdicts[featureLocation][0] -= 1
+                    else:
+                        if label is True:
+                            self.verdicts[featureLocation][1] += 1
+                        else:
+                            self.verdicts[featureLocation][1] -= 1
+            else:
+                predictions = []
+                for instance in features:
+                    if 0 < instance[featureLocation]:
+                        predictions.append(self.verdicts[featureLocation][0])
+                    else:
+                        predictions.append(self.verdicts[featureLocation][1])
+
+                return predictions
+
+        elif featureLocation == 3 or featureLocation == 6:
+            if labels is not None:
+                self.verdicts[featureLocation] = [0, 0, 0]
+                for instance, label in zip(features, labels):
+                    if 0 < instance[featureLocation]:
+                        if label is True:
+                            self.verdicts[featureLocation][0] += 1
+                        else:
+                            self.verdicts[featureLocation][0] -= 1
+                    elif 0 < instance[featureLocation + 1]:
+                        if label is True:
+                            self.verdicts[featureLocation][1] += 1
+                        else:
+                            self.verdicts[featureLocation][1] -= 1
+                    elif 0 < instance[featureLocation + 2]:
+                            if label is True:
+                                self.verdicts[featureLocation][2] += 1
+                            else:
+                                self.verdicts[featureLocation][2] -= 1
+            else:
+                for instance in features:
+                    if 0 < instance[featureLocation]:
+                        predictions.append(self.verdicts[featureLocation][0])
+                    elif 0 < instance[featureLocation + 1]:
+                        predictions.append(self.verdicts[featureLocation][1])
+                    elif 0 < instance[featureLocation + 2]:
+                        predictions.append(self.verdicts[featureLocation][2])
+                return predictions
+
+        else:
+            print('sent improper feature location to decider function...')
 
 
     def predict(self, features):
         #Run model here
         #Return list/array of predictions where there is one prediction for each set of features
+        print('self.featPositions is {}'.format(self.featurePositions))
+        predictions = self.decider(features, self.featurePositions[0])
+        return predictions
 
 
-"""
-phillip routine
-kNN = KNN()
-train_dataset, test_dataset = trainingTestData(dataset, train_ratio)
-train_features, train_labels = preprocess(train_dataset)
-kNN.train(train_features, train_labels)
-test_features, test_labels = preprocess(test_dataset)
-predictions = kNN.predict(test_features)
-"""
 
-# variables for all classes#
+#variables for all classes#
 baseFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
 hotEncFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H', \
                   'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER', 'can_inc_cha_ope_sea_OPEN']
@@ -502,7 +696,7 @@ nDataSet = normalizeData(dataset, baseFeatures[:3])
 encNormDataset = encodeData(nDataSet, baseFeatures[3:])
 encRawDataSet = encodeData(dataset, baseFeatures[3:])
 
-"""
+
 # KNN
 KNNRatio = 0.1
 KNNtrainingData, KNNtestingData = trainingTestData(encNormDataset, KNNRatio)
@@ -521,6 +715,7 @@ PRatio = 0.5
 PtrainingData, PtestingData = trainingTestData(encNormDataset, PRatio)
 PtrainingFeatures, PtrainingLabels = getNumpy(PtrainingData)
 PtestingFeatures, PtestingLabels = getNumpy(PtestingData)
+
 P = Perceptron()
 #print('features for P are of type {} and numpy shape {}'.format(type(PtrainingFeatures), PtrainingFeatures.shape))
 P.train(PtrainingFeatures, PtrainingLabels)
@@ -539,8 +734,17 @@ M.train(MLPtrainingFeatures, MLPtrainingLabels)
 MLPtestingLabels = M.predict(MLPtestingFeatures)
 accuracy = evaluate(MLPtestingLabels, MLPtestingLabels)
 print('accuracy for MLP is {}%'.format(accuracy))
-"""
+
 
 #ID3
+ID3Ratio = 0.7
+ID3trainingData, ID3testingData = trainingTestData(encNormDataset, ID3Ratio)
+ID3trainingFeatures, ID3trainingLabels = getNumpy(ID3trainingData)
+ID3testingFeatures, ID3testingLabels = getNumpy(ID3testingData)
+
 ID3Tree = ID3()
-ID3Tree.train()
+ID3Tree.train(ID3trainingFeatures, ID3trainingLabels)
+print('ID3Trees verdict object {}'.format(ID3Tree.verdicts))
+ID3testingLabels = ID3Tree.predict(ID3testingFeatures)
+accuracy = evaluate(ID3testingLabels, ID3testingLabels)
+print('accuracy for ID3 is {}%'.format(accuracy))
