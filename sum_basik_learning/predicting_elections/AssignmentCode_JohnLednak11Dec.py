@@ -150,65 +150,38 @@ class KNN:
 class Perceptron:
     def __init__(self):
         # Perceptron state here
-        self.rawFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off', 'can_inc_cha_ope_sea']
-        self.encodedFeatures = ['net_ope_exp', 'net_con', 'tot_loa', 'can_off_P', 'can_off_S', 'can_off_H', \
-                                'can_inc_cha_ope_sea_INCUMBENT', 'can_inc_cha_ope_sea_CHALLENGER',
-                                'can_inc_cha_ope_sea_OPEN']
-        #
-        self.trainingData = None
-        # numpy objects
-        self.trainingFeatures = None
-        self.trainingLabels = None
-        #
-        self.testingData = None
-        # numpy objects
-        self.testingFeatures = None
-        self.testingLabels = None
-        self.ratio = None
         # randomly initialize weights for the features
         # weights between -0.01 and 0.01
-        self.weights = {}
-        self.predictions = []
+        self.weights = []
         self.bias = 1.000000
 
-    def preprocess(self, dataset):
-        self.ratio = 0.5
-        nPDataset = normalizeData(dataset, self.rawFeatures[:3])
-        encNPDataset = encodeData(nPDataset, self.rawFeatures[3:])
-        self.trainingData, self.testingData = trainingTestData(encNPDataset, self.ratio)
-        self.trainingFeatures, self.trainingLabels = getNumpy(self.trainingData)
-        self.testingFeatures, self.testingLabels = getNumpy(self.trainingData)
-        # initialize weights, for continuous labels
-        # ASSUMPTION, the first three labels are continuous,
-        # the second two (represented by 6 fields) are discrete
-        for i in range(0, len(self.encodedFeatures)):
-            scalar = random.random() / 100000.000000
-            print('scalar is {}'.format(scalar))
-            self.weights[i] = random.choice([0.000000 - scalar, scalar])
-
-    def train(self):
+    def train(self, features, labels):
         # training logic here
         # input is list/array of features and labels
         # print initial weights for comparison
+        # initialize weights, for continuous labels
+        # ASSUMPTION, the first three labels are continuous,
+        # the second two (represented by 6 fields) are discrete
+        for i in range(0, features.shape[1]):
+            scalar = random.random() / 100000.000000
+            print('scalar is {}'.format(scalar))
+            self.weights.append(random.choice([0.000000 - scalar, scalar]))
         print('start of training: weights are now {}'.format(self.weights))
         # training logic here
-        # input is list/array of features and labels
-        continuousFeatures = self.rawFeatures[:3]
-        booleanFeatures = self.encodedFeatures[3:]
         adjustments = [0, 0, 0, 0, 0, 0, 0, 0, 0]
         learningRate = 0.1000000
-        for trainingInstance, trainingLabel in zip(self.trainingFeatures, self.trainingLabels):
+        for trainingInstance, trainingLabel in zip(features, labels):
             # create the hyperplane to crossect as True or False (1, 0)
             # since all data is normalized, the currentOut should be between 0 and 1
             # w = w_original + (desired_output - current_ouput) * input_value
-            for cfposition in range(0, len(self.encodedFeatures)):
+            for cfposition in range(0, features.shape[1]):
                 currentOut = self.weights[cfposition] * trainingInstance[cfposition] + self.bias
                 if currentOut < 0 and trainingLabel == 1:
                     self.weights[cfposition] = self.weights[cfposition] + learningRate * (1.000000 - currentOut) * \
                                                                           trainingInstance[cfposition]
                     self.bias = self.weights[cfposition] * trainingInstance[cfposition] + self.bias
                     adjustments[cfposition] += 1
-                elif 0 < currentOut and trainingLabel == 0:
+                elif 0 <= currentOut and trainingLabel == 0:
                     self.weights[cfposition] = self.weights[cfposition] + learningRate * (0.000000 - currentOut) * \
                                                                           trainingInstance[cfposition]
                     self.bias = self.weights[cfposition] * trainingInstance[cfposition] - self.bias
@@ -220,10 +193,11 @@ class Perceptron:
                                                                                     len(self.weights)))
         print('{} adjustments were made.'.format(adjustments))
 
-    def predict(self):
+    def predict(self, features):
         # Run model here
         # Return list/array of predictions where there is one prediction for each set of features
-        for testingInstance in self.testingFeatures:
+        predictions = []
+        for testingInstance in features:
             print('testingInstance is {}'.format(testingInstance))
             # find largest vector
             largestScalar = 0
@@ -238,20 +212,14 @@ class Perceptron:
             print('lposition is {} and largestScalar is {}'.format(lposition, largestScalar))
             print('testingInstance[{}] is {}'.format(lposition, testingInstance[lposition]))
             if 0 <= self.weights[lposition] * testingInstance[lposition] + self.bias:
-                self.predictions.append(1)
+                predictions.append(1)
             elif self.weights[lposition] * testingInstance[lposition] + self.bias < 0:
-                self.predictions.append(0)
+                predictions.append(0)
             else:
                 print('weights[{}] * testingInstance[{}] is {}'.format(lposition, lposition, (
                     self.weights[lposition] * testingInstance[lposition])))
-        incorrectCount = 0
-        for prediction, label in zip(self.predictions, self.testingLabels):
-            if prediction != label:
-                incorrectCount += 1
-        print('{} incorrect, sizes of predictions and testingLabels are {} and {}'.format(incorrectCount,
-                                                                                          len(self.predictions),
-                                                                                          len(self.testingLabels)))
-        return (self.predictions, self.testingLabels)
+
+        return (predictions)
 
 
 class MLP:
@@ -263,35 +231,13 @@ class MLP:
         self.L0P2 = Perceptron()
         self.L1P0 = Perceptron()
         self.L1P1 = Perceptron()
-        self.rawFeatures = self.P00.rawFeatures
-        self.encodedFeatures = self.P00.encodedFeatures
+        self.L2P0 = Perceptron()
         self.outputs = {}
         self.outputError = {}
 
-    def preprocess(self, dataset):
-        self.ratio = 0.5
-        nPDataset = normalizeData(dataset, self.rawFeatures[:3])
-        encNPDataset = encodeData(nPDataset, self.rawFeatures[3:])
-        self.trainingData, self.testingData = trainingTestData(encNPDataset, self.ratio)
-        self.trainingFeatures, self.trainingLabels = getNumpy(self.trainingData)
-        self.testingFeatures, self.testingLabels = getNumpy(self.trainingData)
-        # initialize weights, for continuous labels
-        # ASSUMPTION, the first three labels are continuous,
-        # the second two (represented by 6 fields) are discrete
-        for i in range(0, len(self.encodedFeatures)):
-            scalar = random.random() / 100000.000000
-            self.L0P0.weights[i] = random.choice([0.000000 - scalar, scalar])
-            scalar = random.random() / 100000.000000
-            self.L0P1.weights[i] = random.choice([0.000000 - scalar, scalar])
-            scalar = random.random() / 100000.000000
-            self.L0P2.weights[i] = random.choice([0.000000 - scalar, scalar])
-            scalar = random.random() / 100000.000000
-            self.L1P0.weights[i] = random.choice([0.000000 - scalar, scalar])
-            scalar = random.random() / 100000.000000
-            self.L1P1.weights[i] = random.choice([0.000000 - scalar, scalar])
 
-    def activationFunction(self, weight, featureValue):
-        output = 1.000000 / (1.000000 + math.exp(1) ** ((0.000000 - weight) * featureValue))
+    def activationFunction(self, value):
+        output = 1.000000 / (1.000000 + math.exp(1) ** (value))
         return output
 
     def squaredError(self, outputP, label):
@@ -302,55 +248,95 @@ class MLP:
         else:
             return False
 
-    def train(self):
+    def train(self, features, labels):
         # training logic here
         # input is list/array of features and labels
-        # print initial weights for comparison
-        print('start of training: weights are now {}'.format(self.weights))
-        continuousFeatures = self.rawFeatures[:3]
-        booleanFeatures = self.encodedFeatures[3:]
-        adjustments = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-        learningRate = 0.1000000
-        for trainingInstance, trainingLabel in zip(self.trainingFeatures, self.trainingLabels):
+        for i in range(0, features.shape[1]):
+            scalar = random.random() / 100000.000000
+            self.L0P0.weights.append(random.choice([0.000000 - scalar, scalar]) + 0.100000 )
+            scalar = random.random() / 100000.000000
+            self.L0P1.weights.append(random.choice([0.000000 - scalar, scalar]) + 0.100000 )
+            scalar = random.random() / 100000.000000
+            self.L0P2.weights.append(random.choice([0.000000 - scalar, scalar]) + 0.100000 )
+            scalar = random.random() / 100000.000000
+            self.L1P0.weights.append(random.choice([0.000000 - scalar, scalar]) + 0.100000)
+            scalar = random.random() / 100000.000000
+            self.L1P1.weights.append(random.choice([0.000000 - scalar, scalar]) + 0.100000)
+            scalar = random.random() / 100000.000000
+            self.L2P0.weights.append(random.choice([0.000000 - scalar, scalar]) + 0.100000)
+        learningRate = 0.100000
+        stdError = 1.000000
+        for trainingInstance, trainingLabel in zip(features, labels):
             # create the hyperplane to crossect as True or False (1, 0)
             # since all data is normalized, the currentOut should be between 0 and 1
-            for cfposition in range(0, len(self.encodedFeatures)):
-                self.outputs[L0P0] = MLP.activationFunction(self.L0P0.weights[cfposition],
-                                                            trainingInstance[cfposition]) + self.L0P0.bias
-                self.outputs[L0P1] = MLP.activationFunction(self.L0P1.weights[cfposition],
-                                                            trainingInstance[cfposition]) + self.L0P1.bias
-                self.outputs[L0P1] = MLP.activationFunction(self.L0P2.weights[cfposition],
-                                                            trainingInstance[cfposition]) + self.L0P2.bias
-                self.outputs[L1P0] = MLP.activationFunction(self.L1P0.weights[cfposition],
-                                                            self.outputs[P00]) + self.L1P0.bias
-                self.outputs[L1P1] = MLP.activationFunction(self.L1P1.weights[cfposition],
-                                                            self.outputs[P01]) + self.L1P1.bias
-                # weight = weight_prev - (learningRate * (expectedTarget - currentCalc) * currentCalc * (1 - currentCalc) * featureValue
-                # currentCalc = weight * featureValue
-                self.L0P0.weights[cfposition] = self.L0P0.weights[cfposition] - (learningRate - self.outputs[L0P0]) * \
-                                                                                self.outputs[L0P0] * (
-                                                                                    1.000000 - self.outputs[L0P0]) * \
-                                                                                trainingInstance[cfposition]
-                self.L0P1.weights[cfposition] = self.L0P1.weights[cfposition] - (learningRate - self.outputs[L0P1]) * \
-                                                                                self.outputs[L0P1] * (
-                                                                                    1.000000 - self.outputs[L0P1]) * \
-                                                                                trainingInstance[cfposition]
-                self.L0P2.weights[cfposition] = self.L0P2.weights[cfposition] - (learningRate - self.outputs[L0P2]) * \
-                                                                                self.outputs[L0P2] * (
-                                                                                    1.000000 - self.outputs[L0P2]) * \
-                                                                                trainingInstance[cfposition]
-                self.L1P0.weights[cfposition] = self.L1P0.weights[cfposition] - (learningRate - self.outputs[L1P0]) * \
-                                                                                self.outputs[L1P0] * (
-                                                                                    1.000000 - self.outputs[L1P0]) * \
-                                                                                trainingInstance[cfposition]
-                self.L1P1.weights[cfposition] = self.L1P1.weights[cfposition] - (learningRate - self.outputs[L1P1]) * \
-                                                                                self.outputs[L1P1] * (
-                                                                                    1.000000 - self.outputs[L1P1]) * \
-                                                                                trainingInstance[cfposition]
-            if squaredError(self.L1P0, trainingLabel) and squaredError(self.L1P1, trainingLabel):
-                return None
-            else:
-                pass
+            # weight = weight_prev - (learningRate * (expectedTarget - currentCalc) * currentCalc * (1 - currentCalc) * featureValue
+            # currentCalc = weight * featureValue
+            self.outputs[self.L0P0] = 0
+            self.outputs[self.L0P1] = 0
+            self.outputs[self.L0P2] = 0
+            for L0fposition in range(0, features.shape[1]):
+                self.L0P0.weights[L0fposition] = self.L0P0.weights[L0fposition] - (learningRate * stdError)
+                self.L0P1.weights[L0fposition] = self.L0P0.weights[L0fposition] - (learningRate * stdError)
+                self.L0P2.weights[L0fposition] = self.L0P0.weights[L0fposition] - (learningRate * stdError)
+                self.L0P0.bias = self.L0P0.bias - (learningRate * stdError)
+                self.L0P1.bias = self.L0P1.bias - (learningRate * stdError)
+                self.L0P2.bias = self.L0P2.bias - (learningRate * stdError)
+                self.outputs[self.L0P0] += self.L0P0.weights[L0fposition] * trainingInstance[L0fposition] + self.L0P0.bias
+                """
+                if self.outputs[self.L0P0] <= 0 and trainingLabel == 1:
+                    self.L0P0.weights[cfposition] = self.L0P0.weights[cfposition] - (learningRate - self.outputs[self.L0P0]) * self.outputs[self.L0P0] * (1.000000 - self.outputs[self.L0P0]) * trainingInstance[cfposition]
+                    adjustments[cfposition] += 1
+                elif 0 < self.outputs[self.L0P0] and trainingLabel == 0:
+                    self.L0P0.weights[cfposition] = self.L0P0.weights[cfposition] - (learningRate - self.outputs[self.L0P0]) * self.outputs[self.L0P0] * (1.000000 - self.outputs[self.L0P0]) * trainingInstance[cfposition]
+                    adjustments[cfposition] += 1
+                else:
+                    pass
+                """
+                self.outputs[self.L0P1] += self.L0P0.weights[L0fposition] * trainingInstance[L0fposition] + self.L0P1.bias
+                """
+                if self.outputs[self.L0P1] <= 0 and trainingLabel == 1:
+                    self.L0P1.weights[cfposition] = self.L0P1.weights[cfposition] - (learningRate - self.outputs[self.L0P1]) * self.outputs[self.L0P1] * (1.000000 - self.outputs[self.L0P1]) * trainingInstance[cfposition]
+                adjustments[cfposition] += 1
+                elif 0 < self.outputs[self.L0P1] and trainingLabel == 0:
+                    self.L0P1.weights[cfposition] = self.L0P1.weights[cfposition] - (learningRate - self.outputs[self.L0P1]) * self.outputs[self.L0P0] * (1.000000 - self.outputs[self.L0P0]) * trainingInstance[cfposition]
+                    adjustments[cfposition] += 1
+                else:
+                    pass
+                """
+                self.outputs[self.L0P2] += self.L0P2.weights[L0fposition] * trainingInstance[L0fposition] + self.L0P2.bias
+                """
+                if self.outputs[self.L0P2] <= 0 and trainingLabel == 1:
+                    self.L0P2.weights[cfposition] = self.L0P2.weights[cfposition] - (learningRate - self.outputs[self.L0P2]) * self.outputs[self.L0P2] * (1.000000 - self.outputs[self.L0P2]) * trainingInstance[cfposition]
+                elif 0 < self.outputs[self.L0P1] and trainingLabel == 0:
+                    self.L0P1.weights[cfposition] = self.L0P1.weights[cfposition] - (learningRate - self.outputs[self.L0P1]) * self.outputs[self.L0P0] * (1.000000 - self.outputs[self.L0P0]) * trainingInstance[cfposition]
+                    adjustments[cfposition] += 1
+                else:
+                    pass
+                """
+            self.outputs[self.L0P0] = self.activationFunction(self.outputs[self.L0P0])
+            self.outputs[self.L0P1] = self.activationFunction(self.outputs[self.L0P1])
+            self.outputs[self.L0P2] = self.activationFunction(self.outputs[self.L0P2])
+            self.outputs[self.L1P0] = 0
+            self.outputs[self.L1P1] = 0
+            for L1fposition in range(0, features.shape[1]):
+                self.L1P0.weights[L1fposition] = self.L1P0.weights[L1fposition] - (learningRate * stdError)
+                self.L1P1.weights[L1fposition] = self.L1P1.weights[L1fposition] - (learningRate * stdError)
+                for inputNode in [self.L0P0, self.L0P1, self.L0P2]:
+                    self.outputs[self.L1P0] += self.L1P0.weights[L1fposition] * self.outputs[inputNode] + self.L1P0.bias
+                    self.outputs[self.L1P1] += self.L1P1.weights[L1fposition] * self.outputs[inputNode] + self.L1P1.bias
+            self.outputs[self.L1P0] = self.activationFunction(self.outputs[self.L1P0])
+            self.outputs[self.L1P1] = self.activationFunction(self.outputs[self.L1P1])
+            self.outputs[self.L2P0] = 0
+            for L2position in range(0, features.shape[1]):
+                self.L2P0.weights[L1fposition] = self.L2P0.weights[L1fposition] - (learningRate * stdError)
+                for hiddenNode in [self.L1P0, self.L1P1]:
+                    self.outputs[self.L2P0] += self.outputs[hiddenNode] + self.L2P0.bias
+            self.outputs[self.L2P0] = self.activationFunction(self.outputs[self.L2P0])
+
+            stdError = (self.outputs[self.L2P0] - trainingLabel)**2
+            print('error is {}'.format(stdError))
+
+
 
     def predict(self, features):
         # Run model here
@@ -405,13 +391,27 @@ accuracy = evaluate(KNNtestingLabels, predictions)
 print('accuracy for KNN is {}%'.format(accuracy))
 
 """
-
-P = Preceptron()
-P.preproces(dataset)
-P.train()
-predictions, labels = P.predict()
-
-M = MLP()
-M.preprocess(dataset)
-M.train()
 """
+#Perceptron
+PRatio = 0.5
+PtrainingData, PtestingData = trainingTestData(encNormDataset, PRatio)
+PtrainingFeatures, PtrainingLabels = getNumpy(PtrainingData)
+PtestingFeatures, PtestingLabels = getNumpy(PtestingData)
+P = Perceptron()
+#print('features for P are of type {} and numpy shape {}'.format(type(PtrainingFeatures), PtrainingFeatures.shape))
+P.train(PtrainingFeatures, PtrainingLabels)
+predictions = P.predict(PtestingFeatures)
+print('size of predictions is {} and size of PtestingLabels is {}'.format(len(predictions), len(PtestingLabels)))
+accuracy = evaluate(PtestingLabels, predictions)
+print('accuracy for KNN is {}%'.format(accuracy))
+"""
+
+
+#MLP
+MLPRatio = 0.5
+MLPtrainingData, MLPtestingData = trainingTestData(encNormDataset, MLPRatio)
+MLPtrainingFeatures, MLPtrainingLabels = getNumpy(MLPtrainingData)
+MLPtestingFeatures, MLPtestingLabels = getNumpy(MLPtestingData)
+M = MLP()
+M.train(MLPtrainingFeatures, MLPtrainingLabels)
+
